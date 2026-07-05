@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PARK AI — Airbnb for parking in Chennai. Find guaranteed, affordable, covered parking spots or rent your driveway." />
+  <meta name="theme-color" content="#04040f" />
+  <title>PARK AI — Smart Parking for Chennai</title>
+
+  <!-- PWA Support -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="#04040f" />
+  <meta name="apple-mobile-web-app-title" content="PARK AI" />
+  <link rel="apple-touch-icon" href="https://img.icons8.com/neon/192/parking.png" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- BOOKING OVERLAY -->
+<div class="booking-overlay" id="booking-overlay" onclick="if(event.target===this)closeBooking()">
+  <div class="booking-modal">
+
+    <!-- BOOKING FORM -->
+    <div id="booking-form">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+        <h2>Reserve Your Spot</h2>
+        <button class="btn btn-ghost btn-icon" onclick="closeBooking()" style="font-size:18px;">✕</button>
+      </div>
+      <div class="subtitle" id="bk-lot-area">Chennai Parking</div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:20px;">
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px;" id="bk-lot-name">—</div>
+        <div id="bk-lot-tags" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;"></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);">
+          <span>Base rate</span>
+          <span style="font-family:var(--font-display);font-size:20px;color:var(--text);" id="bk-base-price">₹—</span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="label">Vehicle Number</div>
+        <input class="input" id="bk-vehicle" placeholder="TN 07 AB 1234" maxlength="14"
+               oninput="this.value=this.value.toUpperCase()" />
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+        <div>
+          <div class="label">Start Date</div>
+          <input class="input" type="date" id="bk-date" />
+        </div>
+        <div>
+          <div class="label">Start Time</div>
+          <input class="input" type="time" id="bk-start-time" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="label">Duration</div>
+        <div class="dur-grid">
+          <button class="dur-btn active" data-hr="1" onclick="setBookingDur(1,this)">1 hr</button>
+          <button class="dur-btn" data-hr="2" onclick="setBookingDur(2,this)">2 hrs</button>
+          <button class="dur-btn" data-hr="4" onclick="setBookingDur(4,this)">4 hrs</button>
+          <button class="dur-btn" data-hr="8" onclick="setBookingDur(8,this)">8 hrs</button>
+        </div>
+      </div>
+
+      <div class="price-breakdown">
+        <div class="pb-row"><span>Parking fee</span><span id="bk-price-base">₹—</span></div>
+        <div class="pb-row"><span>Service fee (5%)</span><span id="bk-price-service">₹—</span></div>
+        <div class="pb-row"><span>GST (18%)</span><span id="bk-price-gst">₹—</span></div>
+        <div class="pb-row total"><span>Total</span><span id="bk-price-total">₹—</span></div>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="closeBooking()">Cancel</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="confirmBooking()">Confirm & Pay →</button>
+      </div>
+    </div>
+
+    <!-- SUCCESS SCREEN -->
+    <div id="booking-success" style="display:none;text-align:center;padding:10px 0;">
+      <div style="width:72px;height:72px;border-radius:50%;background:rgba(0,255,209,0.1);border:2px solid var(--teal);
+                  display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 20px;
+                  box-shadow:var(--glow-teal);animation:popIn .5s cubic-bezier(0.175,0.885,0.32,1.275) both;">✅</div>
+      <h2 style="margin-bottom:4px;">Booking Confirmed!</h2>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">Your spot is reserved. Head to the lot within 15 min.</p>
+
+      <div style="background:rgba(0,255,209,0.04);border:1px solid rgba(0,255,209,0.15);border-radius:var(--r2);padding:20px;text-align:left;margin-bottom:20px;">
+        <div style="font-family:var(--font-display);font-size:48px;color:var(--teal);text-align:center;letter-spacing:0.08em;margin-bottom:12px;" id="bk-confirm-spot">A-00</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text3);">Booking ID</span><span style="font-weight:700;" id="bk-confirm-id">—</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text3);">Location</span><span style="font-weight:700;text-align:right;max-width:60%;" id="bk-confirm-lot">—</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text3);">Duration</span><span style="font-weight:700;" id="bk-confirm-dur">—</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="color:var(--text3);">Vehicle</span><span style="font-weight:700;" id="bk-confirm-vehicle">—</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;"><span style="color:var(--text3);">Total Paid</span><span style="font-weight:800;font-size:16px;color:var(--text);" id="bk-confirm-total">—</span></div>
+        </div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:20px;">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">SESSION TIMER</div>
+        <div id="bk-timer" style="font-family:var(--font-mono);font-size:36px;color:var(--teal);letter-spacing:0.04em;">01:00:00</div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="closeBooking();switchTab('overview',document.querySelector('[data-tab=overview]'))">
+        Back to Dashboard
+      </button>
+      <button class="btn btn-ghost" style="width:100%;" onclick="closeBooking()">Close</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- APP LAYOUT -->
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <a class="logo" href="#" onclick="switchTab('overview',document.querySelector('[data-tab=overview]'));return false;">
+      <div class="logo-mark">🅿</div>
+      <div class="logo-text">PARK<span>AI</span></div>
+    </a>
+
+    <div class="nav-section">
+      <div class="nav-label">Dashboard</div>
+      <div class="nav-item active" data-tab="overview" onclick="switchTab('overview',this)">
+        <span class="icon">⚡</span> Overview
+        <span class="badge-dot"></span>
+      </div>
+      <div class="nav-item" data-tab="map" onclick="switchTab('map',this)">
+        <span class="icon">🗺</span> Live Map
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Host</div>
+      <div class="nav-item" data-tab="host" onclick="switchTab('host',this)">
+        <span class="icon">🏠</span> Host Portal
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Features</div>
+      <div class="nav-item" data-tab="ev" onclick="switchTab('ev',this)">
+        <span class="icon">⚡</span> EV Charging
+      </div>
+      <div class="nav-item" data-tab="weather" onclick="switchTab('weather',this)">
+        <span class="icon">🌤</span> Weather Hub
+      </div>
+      <div class="nav-item" data-tab="safety" onclick="switchTab('safety',this)">
+        <span class="icon">🛡</span> Safety Console
+      </div>
+      <div class="nav-item" data-tab="iot" onclick="switchTab('iot',this)">
+        <span class="icon">📡</span> IoT Sensors
+      </div>
+      <div class="nav-item" data-tab="insights" onclick="switchTab('insights',this)">
+        <span class="icon">📊</span> City Insights
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-item" data-tab="why" onclick="switchTab('why',this)">
+        <span class="icon">🏆</span> Why PARK AI
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="lang-select-wrap">
+        🌐
+        <select id="lang-select">
+          <option value="en">English</option>
+          <option value="ta">தமிழ்</option>
+          <option value="hi">हिन्दी</option>
+        </select>
+      </div>
+      <div class="sys-meta">
+        PARK AI v2.0 · Chennai<br/>
+        Powered by OpenStreetMap + Open-Meteo
+        <div style="margin-top:8px;display:flex;justify-content:center;gap:12px;">
+          <a href="#" onclick="showLegal('tos');return false;" style="color:var(--text3);text-decoration:none;transition:color .2s;" onmouseenter="this.style.color='var(--teal)'" onmouseleave="this.style.color='var(--text3)'">Terms</a>
+          <span style="color:var(--border);">|</span>
+          <a href="#" onclick="showLegal('privacy');return false;" style="color:var(--text3);text-decoration:none;transition:color .2s;" onmouseenter="this.style.color='var(--teal)'" onmouseleave="this.style.color='var(--text3)'">Privacy</a>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main-content">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+        <div style="font-size:13px;color:var(--text2);">Chennai Smart Parking Network</div>
+        <div id="backend-status"></div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-clock" id="clock">--:--:--</div>
+        <button class="btn btn-primary btn-sm" id="auth-topbar-btn" onclick="Auth.showAuthModal()">🔐 Sign In</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('map',document.querySelector('[data-tab=map]'))">🗺 Open Map</button>
+        <button class="btn btn-primary btn-sm" onclick="switchTab('host',document.querySelector('[data-tab=host]'))">+ List Space</button>
+      </div>
+    </div>
+
+    <!-- MOBILE NAV (shown only on small screens) -->
+    <nav class="mobile-nav" id="mobile-nav">
+      <div class="nav-item active" data-tab="overview" onclick="switchTab('overview',this);syncMobileNav(this)">⚡ Overview</div>
+      <div class="nav-item" data-tab="map" onclick="switchTab('map',this);syncMobileNav(this)">🗺 Map</div>
+      <div class="nav-item" data-tab="host" onclick="switchTab('host',this);syncMobileNav(this)">🏠 Host</div>
+      <div class="nav-item" data-tab="ev" onclick="switchTab('ev',this);syncMobileNav(this)">⚡ EV</div>
+      <div class="nav-item" data-tab="weather" onclick="switchTab('weather',this);syncMobileNav(this)">🌤 Weather</div>
+      <div class="nav-item" data-tab="safety" onclick="switchTab('safety',this);syncMobileNav(this)">🛡 Safety</div>
+      <div class="nav-item" data-tab="iot" onclick="switchTab('iot',this);syncMobileNav(this)">📡 IoT</div>
+      <div class="nav-item" data-tab="insights" onclick="switchTab('insights',this);syncMobileNav(this)">📊 Insights</div>
+      <div class="nav-item" data-tab="why" onclick="switchTab('why',this);syncMobileNav(this)">🏆 Why PARK AI</div>
+    </nav>
+
+    <!-- ===================== OVERVIEW ===================== -->
+    <div class="pane active" id="pane-overview">
+
+      <!-- Active Booking Banner -->
+      <div id="active-booking-banner" style="display:none;background:rgba(0,255,209,0.05);border:1px solid rgba(0,255,209,0.2);border-radius:var(--r2);padding:18px 24px;margin-bottom:28px;"></div>
+
+      <!-- Hero -->
+      <div style="background:linear-gradient(135deg,rgba(0,255,209,0.04) 0%,rgba(168,85,247,0.04) 100%);border:1px solid var(--border);border-radius:var(--r3);padding:48px 48px 40px;margin-bottom:28px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-60px;right:-60px;width:320px;height:320px;background:radial-gradient(circle,rgba(0,255,209,0.08),transparent 70%);pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-80px;left:30%;width:280px;height:280px;background:radial-gradient(circle,rgba(168,85,247,0.06),transparent 70%);pointer-events:none;"></div>
+
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:5px 14px;background:rgba(0,255,209,0.08);border:1px solid rgba(0,255,209,0.2);border-radius:99px;font-size:11.5px;font-weight:700;color:var(--teal);margin-bottom:20px;letter-spacing:0.06em;">
+          🏆 AIRBNB FOR PARKING · CHENNAI
+        </div>
+
+        <h1 style="font-size:52px;font-weight:800;letter-spacing:-0.03em;line-height:1.05;margin-bottom:14px;">
+          <span id="hero-line1">Smart Parking</span><br/>
+          <span id="hero-line2" style="background:var(--grad-teal);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Where Empty Driveways Become Income</span>
+        </h1>
+        <p id="hero-desc" style="font-size:16px;color:var(--text2);max-width:560px;line-height:1.7;margin-bottom:32px;">
+          Chennai has <strong style="color:var(--text);">4.2 lakh homes</strong> with empty driveways. Meanwhile drivers waste 23 minutes hunting for parking. PARK AI lets homeowners <strong style="color:var(--teal);">earn rent</strong> from their unused space — and gives drivers a <strong style="color:#c084fc;">guaranteed spot</strong>.
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-primary" style="font-size:15px;padding:13px 28px;" id="cta-find"
+            onclick="switchTab('map',document.querySelector('[data-tab=map]'))">Find Parking Now →</button>
+          <button class="btn btn-ghost" style="font-size:15px;padding:13px 28px;" id="cta-host"
+            onclick="switchTab('host',document.querySelector('[data-tab=host]'))">🏠 Host Your Space</button>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="grid-4" style="margin-bottom:28px;">
+        <div class="stat-card teal">
+          <div class="stat-label">Parking Lots</div>
+          <div class="stat-value teal" data-target="10" data-suffix="">0</div>
+          <div class="stat-sub">Across Chennai</div>
+        </div>
+        <div class="stat-card violet">
+          <div class="stat-label">Slots Available</div>
+          <div class="stat-value violet" data-target="262" data-suffix="">0</div>
+          <div class="stat-sub">Right now · Live</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">EV Chargers</div>
+          <div class="stat-value amber" data-target="21" data-suffix="">0</div>
+          <div class="stat-sub">Fast + standard</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">Bookings Today</div>
+          <div class="stat-value red" data-target="847" data-suffix="">0</div>
+          <div class="stat-sub">+12% from yesterday</div>
+        </div>
+      </div>
+
+      <!-- Quick Book -->
+      <div style="margin-bottom:28px;">
+        <div class="card">
+          <div style="font-weight:700;font-size:16px;margin-bottom:4px;">🔍 Quick Book</div>
+          <div style="font-size:12.5px;color:var(--text2);margin-bottom:18px;">Top available spots near you</div>
+          <div id="quick-book-list"></div>
+        </div>
+      </div>
+
+      <!-- Booking history strip -->
+      <div style="margin-bottom:28px;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div>
+              <div style="font-weight:700;font-size:16px;">🎫 Your Booking History</div>
+              <div style="font-size:12.5px;color:var(--text2);margin-top:3px;">Saved locally — survives refresh</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="DB.set('bookings',[]);renderBookingHistory();toast('History cleared','info')">Clear</button>
+          </div>
+          <div id="booking-history-list">
+            <div style="color:var(--text3);font-size:13px;padding:20px;text-align:center;">No bookings yet. Book a spot!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Activity Feed -->
+      <div style="margin-bottom:28px;">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div>
+              <div style="font-weight:700;font-size:16px;">📡 Live Activity Feed</div>
+              <div style="font-size:12.5px;color:var(--text2);margin-top:3px;">Real-time bookings, alerts, and sensor events</div>
+            </div>
+            <div class="live-pill" style="font-size:10px;"><div class="live-dot"></div>LIVE</div>
+          </div>
+          <div id="live-feed" style="display:flex;flex-direction:column;"></div>
+        </div>
+      </div>
+
+
+    </div>
+
+    <!-- ===================== MAP ===================== -->
+    <div class="pane" id="pane-map">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h2 style="font-size:24px;">🗺 Live Parking Map</h2>
+          <div style="font-size:13px;color:var(--text2);margin-top:3px;">Real map · Click any pin to see details and book</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm map-filter-btn active" onclick="setMapFilter('all',this)">All</button>
+          <button class="btn btn-ghost btn-sm map-filter-btn" onclick="setMapFilter('available',this)">Available</button>
+          <button class="btn btn-ghost btn-sm" onclick="flyToMe()">📍 My Location</button>
+        </div>
+      </div>
+
+      <!-- Mini stats -->
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div style="padding:10px 18px;background:rgba(0,255,209,0.05);border:1px solid rgba(0,255,209,0.15);border-radius:99px;font-size:12.5px;font-weight:700;color:var(--teal);">
+          🟢 <span id="map-stat-free">—</span> free slots
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap:20px;align-items:start;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div id="leaflet-map"></div>
+          <div style="display:flex;gap:14px;font-size:11.5px;color:var(--text2);">
+            <span>🟢 Available &nbsp; 🟡 Limited &nbsp; 🔴 Full</span>
+          </div>
+        </div>
+        <div style="max-height:532px;overflow-y:auto;padding-right:4px;">
+          <div id="slot-list"></div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- ===================== HOST ===================== -->
+    <div class="pane" id="pane-host">
+
+      <!-- HERO BANNER -->
+      <div style="background:linear-gradient(135deg,rgba(168,85,247,0.08),rgba(0,255,209,0.05));border:1px solid rgba(168,85,247,0.2);border-radius:28px;padding:44px 48px;margin-bottom:28px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-80px;right:-60px;width:340px;height:340px;background:radial-gradient(circle,rgba(168,85,247,0.1),transparent 65%);pointer-events:none;"></div>
+        <div style="display:inline-flex;align-items:center;gap:8px;padding:5px 14px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:99px;font-size:11.5px;font-weight:700;color:#c084fc;margin-bottom:18px;letter-spacing:0.06em;">
+          💡 PARK AI'S CORE IDEA
+        </div>
+        <h1 style="font-size:42px;font-weight:800;letter-spacing:-0.03em;line-height:1.1;margin-bottom:14px;">
+          Your empty driveway<br/>
+          <span style="background:linear-gradient(135deg,#a855f7,#00ffd1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">earns you money 24/7</span>
+        </h1>
+        <p style="font-size:16px;color:var(--text2);max-width:580px;line-height:1.7;margin-bottom:28px;">
+          Chennai has <strong style="color:var(--text);">4.2 lakh homes</strong> with unused driveways or garages. Meanwhile, drivers waste <strong style="color:var(--text);">23 minutes on average</strong> finding parking. PARK AI connects them — like Airbnb, but for parking spots.
+        </p>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div style="padding:16px 24px;background:rgba(0,255,209,0.06);border:1px solid rgba(0,255,209,0.2);border-radius:16px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:var(--teal);">₹8,400</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;">avg. monthly earnings</div>
+          </div>
+          <div style="padding:16px 24px;background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.2);border-radius:16px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#c084fc;">0 effort</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;">auto booking & payments</div>
+          </div>
+          <div style="padding:16px 24px;background:rgba(255,184,48,0.06);border:1px solid rgba(255,184,48,0.2);border-radius:16px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:var(--amber);">5 min</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;">to list your space</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HOW IT WORKS -->
+      <div style="margin-bottom:28px;">
+        <div style="font-weight:700;font-size:18px;margin-bottom:18px;">How It Works</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;position:relative;">
+          <!-- connector line -->
+          <div style="position:absolute;top:36px;left:12.5%;right:12.5%;height:2px;background:linear-gradient(90deg,var(--teal),#a855f7);z-index:0;opacity:0.3;"></div>
+          <div id="how-host" style="display:contents;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-top:0;" id="how-it-works-grid"></div>
+      </div>
+
+      <!-- TWO VIEWS: HOST / RENTER TOGGLE -->
+      <div style="display:flex;gap:6px;padding:5px;background:var(--surface);border:1px solid var(--border);border-radius:14px;width:fit-content;margin-bottom:24px;">
+        <button id="view-host-btn" onclick="setHostView('host')"
+          style="padding:10px 28px;border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-body);background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;transition:all .2s;">
+          🏠 I Want to Host
+        </button>
+        <button id="view-renter-btn" onclick="setHostView('renter')"
+          style="padding:10px 28px;border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;border:none;font-family:var(--font-body);background:transparent;color:var(--text2);transition:all .2s;">
+          🚗 I Want to Park
+        </button>
+      </div>
+
+      <!-- HOST VIEW -->
+      <div id="host-view">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:20px;margin-bottom:28px;">
+          <div class="stat-card teal">
+            <div class="stat-label">This Month</div>
+            <div class="stat-value teal" data-target="6040" data-suffix="">0</div>
+            <div class="stat-sub">₹6,040 earned</div>
+          </div>
+          <div class="stat-card violet">
+            <div class="stat-label">Bookings</div>
+            <div class="stat-value violet" data-target="35" data-suffix="">0</div>
+            <div class="stat-sub">35 completed</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">Rating</div>
+            <div class="stat-value amber" style="font-size:40px;">4.9⭐</div>
+            <div class="stat-sub">From 35 renters</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Occupancy</div>
+            <div class="stat-value red" data-target="78" data-suffix="%">0</div>
+            <div class="stat-sub">Of listed hours</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:24px;margin-bottom:24px;align-items:start;">
+
+          <!-- Earnings calculator -->
+          <div class="card">
+            <div style="font-weight:700;font-size:16px;margin-bottom:4px;">💰 Earnings Calculator</div>
+            <div style="font-size:12.5px;color:var(--text2);margin-bottom:20px;">See how much your space could earn</div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+              <div>
+                <div class="label">Your Rate (₹/hr)</div>
+                <input class="input" type="number" id="calc-rate" value="40" min="10" oninput="calcEarnings()" />
+              </div>
+              <div>
+                <div class="label">Hours Available / Day</div>
+                <input class="input" type="number" id="calc-hours" value="8" min="1" max="24" oninput="calcEarnings()" />
+              </div>
+              <div>
+                <div class="label">Days Per Week</div>
+                <select class="input" id="calc-days" onchange="calcEarnings()">
+                  <option value="3">3 days/week</option>
+                  <option value="5" selected>5 days/week</option>
+                  <option value="7">Every day</option>
+                </select>
+              </div>
+              <div>
+                <div class="label">Expected Occupancy</div>
+                <select class="input" id="calc-occ" onchange="calcEarnings()">
+                  <option value="0.4">40% (Low)</option>
+                  <option value="0.65" selected>65% (Avg)</option>
+                  <option value="0.85">85% (High)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="background:linear-gradient(135deg,rgba(0,255,209,0.06),rgba(168,85,247,0.04));border:1px solid rgba(0,255,209,0.2);border-radius:16px;padding:20px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
+                <div>
+                  <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Per Day</div>
+                  <div id="earn-day" style="font-size:26px;font-weight:800;color:var(--teal);">₹0</div>
+                </div>
+                <div style="border-left:1px solid var(--border);border-right:1px solid var(--border);">
+                  <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Per Month</div>
+                  <div id="earn-month" style="font-size:26px;font-weight:800;color:#c084fc;">₹0</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Per Year</div>
+                  <div id="earn-year" style="font-size:26px;font-weight:800;color:var(--amber);">₹0</div>
+                </div>
+              </div>
+              <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--text3);text-align:center;">
+                After PARK AI 12% platform fee · GST included in renter price
+              </div>
+            </div>
+          </div>
+
+          <!-- Weekly earnings chart -->
+          <div class="card">
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">📈 Your Earnings — Last 8 Weeks</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">Week-on-week growth</div>
+            <div id="host-earnings-chart"></div>
+            <div style="margin-top:16px;padding:12px;background:rgba(0,255,209,0.04);border:1px solid rgba(0,255,209,0.1);border-radius:var(--r);font-size:12.5px;color:var(--text2);">
+              💡 Hosts who respond within 5 min earn <strong style="color:var(--teal);">2.3× more</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- My listings -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-weight:700;font-size:16px;">📋 My Listings</div>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-listing-section').scrollIntoView({behavior:'smooth'})">+ Add New</button>
+          </div>
+          <div id="host-listings"></div>
+        </div>
+
+        <!-- Recent bookings -->
+        <div class="card" style="margin-bottom:24px;">
+          <div style="font-weight:700;font-size:15px;margin-bottom:16px;">🕐 Recent Bookings</div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr style="color:var(--text3);font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--border);">
+                  <th style="padding:8px 12px;text-align:left;font-weight:600;">Renter</th>
+                  <th style="padding:8px 12px;text-align:left;font-weight:600;">Vehicle</th>
+                  <th style="padding:8px 12px;text-align:left;font-weight:600;">Duration</th>
+                  <th style="padding:8px 12px;text-align:left;font-weight:600;">Date</th>
+                  <th style="padding:8px 12px;text-align:right;font-weight:600;">Earned</th>
+                  <th style="padding:8px 12px;text-align:right;font-weight:600;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom:1px solid var(--border);">
+                  <td style="padding:11px 12px;">Arjun K. ⭐5</td>
+                  <td style="padding:11px 12px;font-family:var(--font-mono);font-size:12px;">TN 07 AC 4821</td>
+                  <td style="padding:11px 12px;">3 hrs</td>
+                  <td style="padding:11px 12px;color:var(--text2);">Today, 10am</td>
+                  <td style="padding:11px 12px;text-align:right;font-weight:700;color:var(--teal);">₹120</td>
+                  <td style="padding:11px 12px;text-align:right;"><span class="badge badge-teal" style="font-size:10px;">✅ Done</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                  <td style="padding:11px 12px;">Priya S. ⭐5</td>
+                  <td style="padding:11px 12px;font-family:var(--font-mono);font-size:12px;">TN 09 BZ 2200</td>
+                  <td style="padding:11px 12px;">2 hrs</td>
+                  <td style="padding:11px 12px;color:var(--text2);">Yesterday, 6pm</td>
+                  <td style="padding:11px 12px;text-align:right;font-weight:700;color:var(--teal);">₹80</td>
+                  <td style="padding:11px 12px;text-align:right;"><span class="badge badge-teal" style="font-size:10px;">✅ Done</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                  <td style="padding:11px 12px;">Senthil D. ⭐4</td>
+                  <td style="padding:11px 12px;font-family:var(--font-mono);font-size:12px;">TN 22 AB 9100</td>
+                  <td style="padding:11px 12px;">8 hrs</td>
+                  <td style="padding:11px 12px;color:var(--text2);">Mon, 9am</td>
+                  <td style="padding:11px 12px;text-align:right;font-weight:700;color:var(--teal);">₹320</td>
+                  <td style="padding:11px 12px;text-align:right;"><span class="badge badge-teal" style="font-size:10px;">✅ Done</span></td>
+                </tr>
+                <tr>
+                  <td style="padding:11px 12px;">Meena V. ⭐5</td>
+                  <td style="padding:11px 12px;font-family:var(--font-mono);font-size:12px;">TN 01 CD 5533</td>
+                  <td style="padding:11px 12px;">4 hrs</td>
+                  <td style="padding:11px 12px;color:var(--text2);">Sun, 2pm</td>
+                  <td style="padding:11px 12px;text-align:right;font-weight:700;color:var(--teal);">₹160</td>
+                  <td style="padding:11px 12px;text-align:right;"><span class="badge badge-teal" style="font-size:10px;">✅ Done</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Add new listing -->
+        <div class="card" id="add-listing-section">
+          <div style="font-weight:700;font-size:16px;margin-bottom:4px;">➕ List a New Space</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">Takes 5 minutes · Go live instantly · Verified by PARK AI</div>
+
+          <!-- Steps progress -->
+          <div style="display:flex;gap:0;margin-bottom:24px;" id="listing-steps-bar">
+            <div style="flex:1;padding:10px 16px;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.25);border-radius:10px 0 0 10px;font-size:12px;font-weight:700;color:#c084fc;text-align:center;" id="lstep1">1 · Location</div>
+            <div style="flex:1;padding:10px 16px;background:var(--surface);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text3);text-align:center;" id="lstep2">2 · Details</div>
+            <div style="flex:1;padding:10px 16px;background:var(--surface);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text3);text-align:center;" id="lstep3">3 · Pricing</div>
+            <div style="flex:1;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:0 10px 10px 0;font-size:12px;font-weight:600;color:var(--text3);text-align:center;" id="lstep4">4 · Publish</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <div class="label">Listing Name *</div>
+              <input class="input" id="new-lot-name" placeholder="e.g. My Adyar Driveway" oninput="updateListingPreview()" />
+            </div>
+            <div>
+              <div class="label">Type</div>
+              <select class="input" id="new-lot-type" onchange="updateListingPreview()">
+                <option value="Covered">🏠 Covered Garage</option>
+                <option value="Open">🌳 Open Driveway</option>
+                <option value="Basement">🏢 Basement Parking</option>
+              </select>
+            </div>
+            <div>
+              <div class="label">Number of Spots *</div>
+              <input class="input" type="number" id="new-lot-spots" placeholder="1" min="1" max="20" oninput="updateListingPreview()" />
+            </div>
+            <div>
+              <div class="label">Rate ₹/hr *</div>
+              <input class="input" type="number" id="new-lot-rate" placeholder="40" min="5" oninput="updateListingPreview()" />
+            </div>
+            <div>
+              <div class="label">Available From</div>
+              <input class="input" type="time" id="new-lot-from" value="08:00" />
+            </div>
+            <div>
+              <div class="label">Available Until</div>
+              <input class="input" type="time" id="new-lot-to" value="22:00" />
+            </div>
+            <div style="grid-column: 1 / -1; margin-top: 4px;">
+              <div class="label">Physical Address *</div>
+              <input class="input" id="new-lot-address" placeholder="e.g. Plot 42, 2nd Cross Street, Gandhi Nagar, Adyar" />
+            </div>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <div class="label" style="margin-bottom:10px;">Features (select all that apply)</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text2);transition:all .2s;" onmouseenter="this.style.borderColor='var(--teal)'" onmouseleave="this.style.borderColor='var(--border)'">
+                <input type="checkbox" id="feat-ev" style="accent-color:var(--teal);width:15px;height:15px;" /> ⚡ EV Charging
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text2);transition:all .2s;" onmouseenter="this.style.borderColor='var(--teal)'" onmouseleave="this.style.borderColor='var(--border)'">
+                <input type="checkbox" id="feat-cctv" style="accent-color:var(--teal);width:15px;height:15px;" /> 📷 CCTV
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text2);transition:all .2s;" onmouseenter="this.style.borderColor='var(--teal)'" onmouseleave="this.style.borderColor='var(--border)'">
+                <input type="checkbox" id="feat-gate" style="accent-color:var(--teal);width:15px;height:15px;" /> 🔒 Gated
+              </label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-size:13px;color:var(--text2);transition:all .2s;" onmouseenter="this.style.borderColor='var(--teal)'" onmouseleave="this.style.borderColor='var(--border)'">
+                <input type="checkbox" id="feat-light" style="accent-color:var(--teal);width:15px;height:15px;" /> 💡 24hr Lighting
+              </label>
+            </div>
+          </div>
+
+          <!-- Live preview card -->
+          <div style="margin-bottom:20px;">
+            <div class="label" style="margin-bottom:10px;">Live Preview — how renters will see your listing</div>
+            <div id="listing-preview" style="padding:20px;background:rgba(168,85,247,0.04);border:1px dashed rgba(168,85,247,0.3);border-radius:16px;">
+              <div style="font-size:12.5px;color:var(--text3);text-align:center;">Fill in details above to see preview</div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="submitNewListing()" style="font-size:15px;padding:14px 32px;">
+            🚀 Publish My Listing →
+          </button>
+        </div>
+      </div>
+
+      <!-- RENTER VIEW -->
+      <div id="renter-view" style="display:none;">
+        <div style="font-weight:700;font-size:16px;margin-bottom:16px;">🏠 Private Home Spaces Near You</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">These are real driveways and garages listed by Chennai homeowners — cheaper, safer, and more personal than public lots.</div>
+        <div id="renter-listings-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;"></div>
+
+        <div class="card" style="background:linear-gradient(135deg,rgba(0,255,209,0.04),rgba(168,85,247,0.04));border-color:rgba(0,255,209,0.15);">
+          <div style="font-weight:700;font-size:15px;margin-bottom:16px;">⚖️ Why Park at a Home vs. a Parking Lot?</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <div style="font-weight:700;font-size:13px;color:var(--teal);margin-bottom:10px;">🏠 Home Driveway (PARK AI)</div>
+              <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--text2);">
+                <div>✅ Cheaper — ₹20–₹50/hr</div>
+                <div>✅ Covered & secure</div>
+                <div>✅ Guaranteed spot — pre-booked</div>
+                <div>✅ Host is personally accountable</div>
+                <div>✅ Often closer to your destination</div>
+              </div>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:var(--red);margin-bottom:10px;">🏢 Public Parking Lot</div>
+              <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--text2);">
+                <div>❌ Expensive — ₹60–₹150/hr</div>
+                <div>❌ Often open-air</div>
+                <div>❌ No guarantee — may be full</div>
+                <div>❌ Anonymous, less accountable</div>
+                <div>❌ Often far from destination</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===================== EV CHARGING ===================== -->
+    <div class="pane" id="pane-ev">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h2 style="font-size:24px;">⚡ EV Smart Charging Network</h2>
+          <div style="font-size:13px;color:var(--text2);margin-top:3px;">Chennai's P2P charging grid · Fast & standard chargers</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:28px;">
+        <!-- Left: Charger Grid -->
+        <div class="card">
+          <div style="font-weight:700;font-size:16px;margin-bottom:14px;">⚡ Live Charger Status</div>
+          <div id="ev-charger-list" style="display:flex;flex-direction:column;gap:16px;">
+            <!-- Will be populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Right: EV Charger Calculator -->
+        <div class="card">
+          <div style="font-weight:700;font-size:16px;margin-bottom:4px;">📊 Charging Estimator</div>
+          <div style="font-size:12.5px;color:var(--text2);margin-bottom:20px;">Calculate charging duration and total cost</div>
+
+          <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:20px;">
+            <div>
+              <div class="label">Select EV Charging Lot</div>
+              <select class="input" id="ev-lot-sel" onchange="calcEV()"></select>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div>
+                <div class="label">Battery Capacity (kWh)</div>
+                <input class="input" type="number" id="ev-battery-cap" value="40" min="10" max="150" oninput="calcEV()" />
+              </div>
+              <div>
+                <div class="label">Charger Speed (kW)</div>
+                <select class="input" id="ev-speed-sel" onchange="calcEV()">
+                  <option value="3.3">3.3 kW (Slow AC)</option>
+                  <option value="7.2" selected>7.2 kW (Fast AC)</option>
+                  <option value="22">22 kW (Rapid AC/DC)</option>
+                  <option value="50">50 kW (Super DC)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <div class="label" style="display:flex;justify-content:space-between;">
+                <span>Current Charge Status</span>
+                <span id="ev-batt-val" style="font-weight:700;color:var(--teal);">45%</span>
+              </div>
+              <input type="range" class="batt-slider" id="ev-batt-slider" min="0" max="95" value="45" oninput="document.getElementById('ev-batt-val').textContent=this.value+'%';calcEV()" />
+            </div>
+          </div>
+
+          <div style="background:linear-gradient(135deg,rgba(56,189,248,0.06),rgba(0,255,209,0.04));border:1px solid rgba(56,189,248,0.2);border-radius:16px;padding:20px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center;margin-bottom:14px;">
+              <div>
+                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Charging Time</div>
+                <div id="ev-calc-time" style="font-size:24px;font-weight:800;color:var(--blue);">0.0 hrs</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Power Needed</div>
+                <div id="ev-calc-kwh" style="font-size:24px;font-weight:800;color:var(--teal);">0.0 kWh</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;text-align:center;border-top:1px solid var(--border);padding-top:14px;">
+              <div>
+                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Charging Cost</div>
+                <div id="ev-calc-cost" style="font-size:20px;font-weight:700;color:var(--text);">₹0</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Total Paid</div>
+                <div id="ev-calc-total" style="font-size:20px;font-weight:800;color:var(--teal);">₹0</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;font-size:11px;color:var(--text3);text-align:center;">
+              Electricity at ₹15/kWh + standard service fee (5%) and GST (18%)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== WEATHER HUB ===================== -->
+    <div class="pane" id="pane-weather">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h2 style="font-size:24px;">🌤 Live Chennai Weather</h2>
+          <div style="font-size:13px;color:var(--text2);margin-top:3px;">Real-time climate integrations with parking demand algorithms</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="weather-simulate-btn" onclick="toggleRainSimulation()">🌧 Simulate Rain</button>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:28px;align-items:start;">
+        <!-- Current Weather Card -->
+        <div class="card">
+          <div style="font-weight:700;font-size:16px;margin-bottom:18px;">🌤 Chennai Now (Live Open-Meteo)</div>
+          <div class="weather-main">
+            <div class="weather-icon" id="weather-icon">☀️</div>
+            <div>
+              <div class="weather-temp" id="weather-temp">--<sup>°C</sup></div>
+              <div class="weather-desc" id="weather-desc">Loading weather...</div>
+            </div>
+          </div>
+
+          <div class="weather-meta-grid" style="margin-top:20px;">
+            <div class="weather-meta-item">
+              <div class="weather-meta-val" id="weather-humidity">--%</div>
+              <div class="weather-meta-key">Humidity</div>
+            </div>
+            <div class="weather-meta-item">
+              <div class="weather-meta-val" id="weather-wind">-- km/h</div>
+              <div class="weather-meta-key">Wind</div>
+            </div>
+            <div class="weather-meta-item">
+              <div class="weather-meta-val" id="weather-rain">-- mm</div>
+              <div class="weather-meta-key">Precipitation</div>
+            </div>
+          </div>
+
+          <!-- Rain Alert Surge Warning -->
+          <div class="rain-alert hidden" id="rain-alert">
+            <span style="font-size:20px;">⚠️</span>
+            <div>
+              <strong style="color:var(--blue);">Rain Surge Active:</strong> Cover parking spaces in Chennai are experiencing high demand. A surcharge of +₹10/hr is applied to protected garages.
+            </div>
+          </div>
+        </div>
+
+        <!-- Weather Impact Analytics -->
+        <div class="card">
+          <div style="font-weight:700;font-size:16px;margin-bottom:14px;">📈 Weather-Parking Correlation</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.6;display:flex;flex-direction:column;gap:12px;">
+            <p>
+              Chennai's climate severely impacts parking habits. During high-intensity monsoons, road inundations lead to a <strong style="color:var(--teal);">300% surge</strong> in search volume for covered garage spaces.
+            </p>
+            <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;">
+                <span style="color:var(--text3);">🌤 Sunny / Clear</span>
+                <span style="font-weight:600;color:var(--teal);">Street & Open Lots preferred (Standard price)</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:8px;">
+                <span style="color:var(--text3);">🌧 Moderate Rain</span>
+                <span style="font-weight:600;color:var(--amber);">Basement/Covered occupancy rises (+15% demand)</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:8px;">
+                <span style="color:var(--text3);">⛈ Torrential Storm</span>
+                <span style="font-weight:600;color:var(--red);">Surge Pricing active (+₹10/hr on covered slots)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SAFETY CONSOLE ===================== -->
+    <div class="pane" id="pane-safety">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:24px;">🛡 Chennai Parking Safety Hub</h2>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">SOS emergency alerts, CCTV connectivity status, and incident reports</div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:28px;align-items:start;">
+        <!-- SOS & Incident Report -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <!-- Emergency Button -->
+          <div class="card" style="border-color:rgba(255,51,102,0.3);background:rgba(255,51,102,0.02);">
+            <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--red);text-transform:uppercase;letter-spacing:0.04em;">🆘 EMERGENCY PANIC SYSTEM</div>
+            <p style="font-size:12.5px;color:var(--text2);margin-bottom:18px;">Clicking this triggers an SMS coordinates ping to nearby security hubs and lists a flag on Chennai PCR network.</p>
+            <button class="sos-btn" id="sos-btn" onclick="triggerSOS()">🆘 EMERGENCY SOS</button>
+          </div>
+
+          <!-- Report Form -->
+          <div class="card">
+            <div style="font-weight:700;font-size:16px;margin-bottom:14px;">📋 Report Active Incident</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+              <button class="btn btn-ghost btn-sm" onclick="reportIssue('damage')">🔧 Spot Damage</button>
+              <button class="btn btn-ghost btn-sm" onclick="reportIssue('theft')">🚔 Theft / Break-in</button>
+              <button class="btn btn-ghost btn-sm" onclick="reportIssue('light')">💡 Light Out</button>
+              <button class="btn btn-ghost btn-sm" onclick="reportIssue('cctv')">📷 CCTV Blurry</button>
+            </div>
+            <div>
+              <div class="label">Custom Issue Description</div>
+              <textarea class="input" id="custom-issue-text" placeholder="Explain details (e.g. Blocked driveway at slot A-10)..." style="height:80px;resize:none;font-family:var(--font-body);margin-bottom:12px;"></textarea>
+              <button class="btn btn-primary btn-sm" style="width:100%;" onclick="submitCustomIssue()">Submit Incident Report →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Safety Toggles -->
+        <div class="card">
+          <div style="font-weight:700;font-size:16px;margin-bottom:4px;">🔒 Safety & Protection Settings</div>
+          <div style="font-size:12.5px;color:var(--text2);margin-bottom:20px;">Toggle automated safety parameters on your listings</div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="safety-feature">
+              <span class="safety-icon">🔑</span>
+              <div>
+                <div class="safety-title">Automated Gate Code PIN</div>
+                <div class="safety-desc">Generate one-time PIN codes on booking.</div>
+              </div>
+              <label class="safety-toggle">
+                <input type="checkbox" checked />
+                <span class="safety-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="safety-feature">
+              <span class="safety-icon">📷</span>
+              <div>
+                <div class="safety-title">CCTV Feed Real-Time Streaming</div>
+                <div class="safety-desc">Enables renter to view real-time feed during booking.</div>
+              </div>
+              <label class="safety-toggle">
+                <input type="checkbox" checked />
+                <span class="safety-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="safety-feature">
+              <span class="safety-icon">🛡</span>
+              <div>
+                <div class="safety-title">PARK AI Damage Insurance Cover</div>
+                <div class="safety-desc">Up to ₹1,00,000 cover against vehicle scratches/dents.</div>
+              </div>
+              <label class="safety-toggle">
+                <input type="checkbox" checked />
+                <span class="safety-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="safety-feature">
+              <span class="safety-icon">⚠️</span>
+              <div>
+                <div class="safety-title">Guard Patrol Alert Routing</div>
+                <div class="safety-desc">Forward reports instantly to neighborhood marshals.</div>
+              </div>
+              <label class="safety-toggle">
+                <input type="checkbox" />
+                <span class="safety-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== IOT SENSORS ===================== -->
+    <div class="pane" id="pane-iot">
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <h2 style="font-size:24px;">📡 ESP32 IoT Sensor Network</h2>
+          <span class="badge badge-violet" style="font-size:10px;">🧪 Software Simulation</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">Simulates hardware readings using the same data structure as our physical sensor nodes</div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:28px;align-items:start;">
+        <!-- Simulation Console & Hardware Log -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <!-- Node configuration -->
+          <div class="card">
+            <div style="font-weight:700;font-size:16px;margin-bottom:14px;">📡 active hardware simulation</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+              <div>
+                <div class="label">Node ID</div>
+                <input class="input" id="iot-node-id" value="ESP32-ADYAR-01" readonly />
+              </div>
+              <div>
+                <div class="label">Mapped Slot</div>
+                <input class="input" id="iot-slot-code" value="A-01" readonly />
+              </div>
+              <div>
+                <div class="label">Signal RSSI</div>
+                <input class="input" id="iot-rssi" value="-62 dBm" readonly />
+              </div>
+              <div>
+                <div class="label">Chip Temp</div>
+                <input class="input" id="iot-temp" value="31.2°C" readonly />
+              </div>
+            </div>
+
+            <!-- Ultrasonic slider -->
+            <div style="margin-bottom:18px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div class="label" style="margin-bottom:0;">Ultrasonic Echo Distance</div>
+                <span id="iot-dist-val" style="font-family:var(--font-mono);font-weight:700;color:var(--teal);">42 cm</span>
+              </div>
+              <input type="range" class="batt-slider" id="iot-dist-slider" min="5" max="120" value="42" oninput="updateIoTSimulator(this.value)" />
+            </div>
+
+            <!-- Simulation status indicator block -->
+            <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface);padding:14px;border-radius:var(--r);border:1px solid var(--border);">
+              <div>
+                <div style="font-size:11px;color:var(--text3);">SLOT OCCUPANCY STATE</div>
+                <div id="iot-occupied-state" style="font-size:18px;font-weight:700;color:var(--teal);margin-top:2px;">🟢 FREE</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px;color:var(--text3);">ONBOARD LED</div>
+                <div id="iot-led" style="font-size:13px;font-weight:700;color:var(--text3);margin-top:2px;">⚫ OFF</div>
+              </div>
+            </div>
+
+            <button class="btn btn-primary btn-sm" style="width:100%;margin-top:16px;" onclick="sendSimulatedTelemetry()">
+              📤 Send HTTP POST Request
+            </button>
+          </div>
+
+          <!-- Log console terminal -->
+          <div class="card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <div style="font-weight:700;font-size:13px;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">📡 esp32 live transmission log</div>
+              <span style="font-size:11px;color:var(--teal);font-family:var(--font-mono);" id="iot-conn-badge">● STREAMING</span>
+            </div>
+            <!-- Log window -->
+            <div id="iot-console-log" style="height:150px;background:#03030b;border:1px solid var(--border);border-radius:8px;padding:12px;overflow-y:auto;font-family:var(--font-mono);font-size:11.5px;color:#00ffd1;line-height:1.5;display:flex;flex-direction:column;gap:6px;">
+              <div>[SYSTEM] Initializing ESP32 hardware simulation...</div>
+              <div>[SYSTEM] Mapped to Supabase sensor_readings table.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware Visualizer -->
+        <div class="card" style="text-align:center;padding:36px 20px;">
+          <div style="font-weight:700;font-size:16px;margin-bottom:20px;text-align:left;">🚗 Hardware Slot Representation</div>
+          
+          <div style="position:relative;width:240px;height:340px;background:rgba(255,255,255,0.01);border:3px dashed var(--border);border-radius:18px;margin:0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .3s;" id="iot-visual-bay">
+            <div style="position:absolute;top:10px;font-family:var(--font-mono);font-size:12px;color:var(--text3);letter-spacing:0.05em;">BAY A-01</div>
+            
+            <!-- Ultrasonic sensor widget representation -->
+            <div style="position:absolute;top:30px;width:70px;height:24px;background:#1e1e38;border:2px solid var(--border);border-radius:6px;display:flex;justify-content:space-around;align-items:center;padding:0 4px;">
+              <div style="width:14px;height:14px;border-radius:50%;background:#090915;border:1px solid var(--text3);"></div>
+              <div style="width:14px;height:14px;border-radius:50%;background:#090915;border:1px solid var(--text3);"></div>
+            </div>
+            <!-- Pulse lines from sensor -->
+            <div id="iot-sensor-pulses" style="position:absolute;top:60px;width:60px;height:100px;display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0.3;pointer-events:none;">
+              <div style="width:20px;height:2px;background:var(--teal);border-radius:99px;"></div>
+              <div style="width:30px;height:2px;background:var(--teal);border-radius:99px;"></div>
+              <div style="width:40px;height:2px;background:var(--teal);border-radius:99px;"></div>
+            </div>
+
+            <!-- Simulated vehicle -->
+            <div id="iot-car-svg" style="width:110px;height:180px;background:#38bdf8;border-radius:14px;margin-top:60px;box-shadow:0 8px 24px rgba(56,189,248,0.3);display:flex;align-items:center;justify-content:center;font-weight:700;color:#04040f;font-size:12px;transition:all .4s;transform:translateY(80px);opacity:0;">
+              CAR MAPPED
+            </div>
+            
+            <div style="position:absolute;bottom:12px;font-size:11px;color:var(--text3);" id="iot-status-sub-label">Slot is free</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== CITY INSIGHTS ===================== -->
+    <div class="pane" id="pane-insights">
+      <div style="margin-bottom:20px;">
+        <h2 style="font-size:24px;">📊 Chennai Smart Parking City Insights</h2>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">Zone demand rates, heatmaps, and network analytics</div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="grid-3" style="margin-bottom:28px;">
+        <div class="card card-sm" style="display:flex;align-items:center;gap:18px;">
+          <div style="font-size:32px;background:rgba(0,255,209,0.06);width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--teal);">📈</div>
+          <div>
+            <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">Avg. Occupancy</div>
+            <div style="font-size:24px;font-weight:800;color:var(--text);">68.4%</div>
+          </div>
+        </div>
+        <div class="card card-sm" style="display:flex;align-items:center;gap:18px;">
+          <div style="font-size:32px;background:rgba(168,85,247,0.06);width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;color:#c084fc;">🕒</div>
+          <div>
+            <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">Peak Demand</div>
+            <div style="font-size:24px;font-weight:800;color:var(--text);">6 PM - 9 PM</div>
+          </div>
+        </div>
+        <div class="card card-sm" style="display:flex;align-items:center;gap:18px;">
+          <div style="font-size:32px;background:rgba(255,184,48,0.06);width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--amber);">💰</div>
+          <div>
+            <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.04em;">Home Earnings</div>
+            <div style="font-size:24px;font-weight:800;color:var(--text);">₹2.4 Lakhs</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:28px;align-items:start;">
+        <!-- Left: Bar Chart and Leaderboard -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <!-- Bar Chart -->
+          <div class="card">
+            <div style="font-weight:700;font-size:15px;margin-bottom:18px;">📈 Parking Occupancy by Zone</div>
+            <div class="bar-chart" id="insights-bar-chart">
+              <!-- Will be loaded dynamically -->
+            </div>
+          </div>
+
+          <!-- Leaderboard -->
+          <div class="card">
+            <div style="font-weight:700;font-size:15px;margin-bottom:14px;">🏆 Top Performing Parking Lots</div>
+            <div style="display:flex;flex-direction:column;gap:10px;" id="insights-leaderboard">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Heatmap and Share breakdown -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <!-- Heatmap -->
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+              <div>
+                <div style="font-weight:700;font-size:15px;">🔥 Hourly Demand Heatmap</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:2px;">Weekly distribution (Mon-Sun vs. Time Blocks)</div>
+              </div>
+            </div>
+            <div class="heatmap-grid" id="insights-heatmap">
+              <!-- Populated dynamically -->
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:12px;font-size:10px;color:var(--text3);margin-top:14px;">
+              <span>Low (0%) ▢</span>
+              <span style="color:#a855f7;">Medium (50%) ▩</span>
+              <span style="color:var(--teal);">High (90%+) ⬛</span>
+            </div>
+          </div>
+
+          <!-- Donut Ring Share -->
+          <div class="card" style="display:grid;grid-template-columns:1.2fr 0.8fr;gap:20px;align-items:center;">
+            <div>
+              <div style="font-weight:700;font-size:15px;margin-bottom:8px;">🍩 Revenue Category Share</div>
+              <p style="font-size:12px;color:var(--text2);line-height:1.5;">Distribution of rental earnings across slot classifications in Chennai.</p>
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--text2);margin-top:12px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="width:8px;height:8px;background:var(--teal);border-radius:50%;"></span>
+                  <span>Covered Driveways (45%)</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="width:8px;height:8px;background:#c084fc;border-radius:50%;"></span>
+                  <span>Corporate Garages (30%)</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span style="width:8px;height:8px;background:var(--blue);border-radius:50%;"></span>
+                  <span>EV Plaza Hubs (25%)</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="donut-ring">
+              <svg width="140" height="140" viewBox="0 0 42 42">
+                <circle class="donut-hole" cx="21" cy="21" r="15.91549430918954" fill="transparent"></circle>
+                <circle class="donut-ring-bg" cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--border)" stroke-width="3"></circle>
+                <!-- Segments -->
+                <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--teal)" stroke-width="3.2" stroke-dasharray="45 55" stroke-dashoffset="100"></circle>
+                <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="#c084fc" stroke-width="3.2" stroke-dasharray="30 70" stroke-dashoffset="55"></circle>
+                <circle cx="21" cy="21" r="15.91549430918954" fill="transparent" stroke="var(--blue)" stroke-width="3.2" stroke-dasharray="25 75" stroke-dashoffset="25"></circle>
+              </svg>
+              <div class="center-text">
+                <span style="font-size: 24px; color: var(--text);">₹100k</span>
+                <span style="font-size: 9px; color: var(--text3); letter-spacing:0.04em;">TOTAL FEES</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== WHY PARK AI ===================== -->
+    <div class="pane" id="pane-why">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:24px;">🏆 Why PARK AI?</h2>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">Economic thesis, competitive advantage, and developer roadmap</div>
+      </div>
+
+      <!-- Economic Stats -->
+      <div class="grid-3" style="margin-bottom:28px;">
+        <div class="stat-card teal">
+          <div class="stat-label">Unused Driveways</div>
+          <div class="stat-value teal" data-target="420000" data-suffix="">0</div>
+          <div class="stat-sub">Chennai home driveways idle daily</div>
+        </div>
+        <div class="stat-card violet">
+          <div class="stat-label">Avg. Search Duration</div>
+          <div class="stat-value violet" data-target="23" data-suffix=" min">0</div>
+          <div class="stat-sub">Wasted hunting public spots</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Daily Economic Waste</div>
+          <div class="stat-value amber" data-target="120" data-suffix=" Lakhs">0</div>
+          <div class="stat-sub">Wasted fuel, time & congestion</div>
+        </div>
+      </div>
+
+      <!-- Competitive Analysis -->
+      <div class="card" style="margin-bottom:28px;">
+        <div style="font-weight:700;font-size:16px;margin-bottom:16px;">⚔️ Competitive Matrix</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+            <thead>
+              <tr style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--border);">
+                <th style="padding:12px;font-weight:600;">Feature Parameter</th>
+                <th style="padding:12px;font-weight:600;color:var(--teal);">🅿️ PARK AI (P2P Driveway)</th>
+                <th style="padding:12px;font-weight:600;">🏢 Govt Metered Lots</th>
+                <th style="padding:12px;font-weight:600;">🏬 Malls & Multi-levels</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:14px 12px;font-weight:600;">Guaranteed Spot Reservation</td>
+                <td style="padding:14px 12px;color:var(--teal);">✅ Yes (Reserved in advance)</td>
+                <td style="padding:14px 12px;color:var(--red);">❌ No (First-come first-served)</td>
+                <td style="padding:14px 12px;color:var(--text2);">⚠️ Partial (High occupancy risk)</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:14px 12px;font-weight:600;">Average Rate Per Hour</td>
+                <td style="padding:14px 12px;color:var(--teal);font-weight:700;">₹20 - ₹40/hr</td>
+                <td style="padding:14px 12px;">₹15 - ₹30/hr</td>
+                <td style="padding:14px 12px;color:var(--red);">₹60 - ₹150/hr</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:14px 12px;font-weight:600;">Shaded / Covered Options</td>
+                <td style="padding:14px 12px;color:var(--teal);">✅ Yes (Home driveways & garages)</td>
+                <td style="padding:14px 12px;color:var(--red);">❌ No (Mainly streetside open-air)</td>
+                <td style="padding:14px 12px;color:var(--teal);">✅ Yes (Basement structure)</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:14px 12px;font-weight:600;">Host Income Generation</td>
+                <td style="padding:14px 12px;color:var(--teal);">✅ Yes (Earn up to ₹8,400/mo)</td>
+                <td style="padding:14px 12px;color:var(--red);">❌ No (Govt contractor fees)</td>
+                <td style="padding:14px 12px;color:var(--red);">❌ No (Corporate earnings)</td>
+              </tr>
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:14px 12px;font-weight:600;">EV Smart Chargers</td>
+                <td style="padding:14px 12px;color:var(--teal);">✅ Yes (Home charger sharing)</td>
+                <td style="padding:14px 12px;color:var(--red);">❌ No</td>
+                <td style="padding:14px 12px;color:var(--text2);">⚠️ Limited (Often broken/occupied)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Roadmap Timeline -->
+      <div class="card">
+        <div style="font-weight:700;font-size:16px;margin-bottom:20px;">🗺 Product Roadmap</div>
+        <div style="display:flex;flex-direction:column;gap:18px;">
+          <div style="display:flex;gap:16px;align-items:flex-start;">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,255,209,0.15);border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--teal);flex-shrink:0;">1</div>
+            <div>
+              <div style="font-weight:700;font-size:14px;color:var(--text);">Phase 1: Chennai P2P Launch (Current)</div>
+              <div style="font-size:12.5px;color:var(--text2);margin-top:2px;">Complete basic driveway listing portal, live OpenStreetMap & Open-Meteo weather hooks, local Python backend syncing, and ESP32 ultrasonic mock simulation.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;border-top:1px solid var(--border);padding-top:16px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(168,85,247,0.15);border:2px solid #c084fc;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#c084fc;flex-shrink:0;">2</div>
+            <div>
+              <div style="font-weight:700;font-size:14px;color:var(--text);">Phase 2: Payment Gateway & Real Hardware (Q3 2026)</div>
+              <div style="font-size:12.5px;color:var(--text2);margin-top:2px;">Integrate UPI/Razorpay payments, WhatsApp automatic OTP codes for garage entry, and deploy physical ESP32 slots linked directly to Supabase realtime triggers.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;border-top:1px solid var(--border);padding-top:16px;">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.15);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--blue);flex-shrink:0;">3</div>
+            <div>
+              <div style="font-weight:700;font-size:14px;color:var(--text);">Phase 3: AI Demand Prediction & ANPR (Q1 2027)</div>
+              <div style="font-size:12.5px;color:var(--text2);margin-top:2px;">Deploy machine learning algorithms for dynamic pricing based on weather/event data, and connect automatic number plate recognition (ANPR) cameras for ticketless parking.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- EDIT LISTING MODAL -->
+<div class="edit-modal-overlay" id="edit-listing-overlay" onclick="if(event.target===this)closeEditModal()">
+  <div class="edit-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:20px;">✏️ Edit Listing</h2>
+      <button class="btn btn-ghost btn-icon" onclick="closeEditModal()" style="font-size:18px;">✕</button>
+    </div>
+    <input type="hidden" id="edit-listing-id" value="" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+      <div style="grid-column:1/-1;">
+        <div class="label">Listing Name</div>
+        <input class="input" id="edit-lot-name" placeholder="e.g. My Adyar Driveway" />
+      </div>
+      <div>
+        <div class="label">Type</div>
+        <select class="input" id="edit-lot-type">
+          <option value="Covered">🏠 Covered Garage</option>
+          <option value="Open">🌳 Open Driveway</option>
+          <option value="Basement">🏢 Basement Parking</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">Number of Spots</div>
+        <input class="input" type="number" id="edit-lot-spots" min="1" max="20" />
+      </div>
+      <div style="grid-column:1/-1;">
+        <div class="label">Rate ₹/hr</div>
+        <input class="input" type="number" id="edit-lot-rate" min="5" />
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="saveEditListing()">💾 Save Changes</button>
+    </div>
+<!-- LEGAL MODAL -->
+<div class="edit-modal-overlay" id="legal-modal-overlay" onclick="if(event.target===this)closeLegalModal()">
+  <div class="edit-modal" style="width:600px; max-height:85vh; display:flex; flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-shrink:0;">
+      <h2 style="font-size:20px;" id="legal-title">Legal Terms</h2>
+      <button class="btn btn-ghost btn-icon" onclick="closeLegalModal()" style="font-size:18px;">✕</button>
+    </div>
+    <div id="legal-body" style="overflow-y:auto; font-size:13.5px; color:var(--text2); line-height:1.7; padding-right:8px; flex-grow:1;">
+      <!-- Content injected by JS -->
+    </div>
+    <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:16px; text-align:right; flex-shrink:0;">
+      <button class="btn btn-primary" onclick="closeLegalModal()">I Understand</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="edit-modal-overlay" id="auth-modal-overlay" onclick="if(event.target===this)Auth.closeAuthModal()">
+  <div class="edit-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 style="font-size:20px;" id="auth-modal-title">🔐 Authentication</h2>
+      <button class="btn btn-ghost btn-icon" onclick="Auth.closeAuthModal()" style="font-size:18px;">✕</button>
+    </div>
+
+    <!-- Step 1: Input Phone -->
+    <div id="auth-step-phone">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:18px;line-height:1.5;">
+        Enter your 10-digit mobile number to verify your account with a secure one-time passcode (OTP).
+      </p>
+      <div class="form-row">
+        <div class="label">Mobile Number</div>
+        <input class="input" type="tel" id="auth-phone-input" placeholder="e.g. 9876543210" maxlength="10" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="authSendOTP()">✉️ Send OTP Passcode</button>
+    </div>
+
+    <!-- Step 2: Input OTP -->
+    <div id="auth-step-otp" style="display:none;">
+      <p style="color:var(--text2);font-size:13px;margin-bottom:18px;line-height:1.5;">
+        Passcode sent! Enter the 6-digit verification code below.
+      </p>
+      <div class="form-row">
+        <div class="label">Verification Code</div>
+        <input class="input" type="text" id="auth-otp-input" placeholder="123456" maxlength="6" style="text-align:center;font-size:18px;letter-spacing:8px;" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="authVerifyOTP()">🔑 Verify Code</button>
+    </div>
+
+    <!-- Step 3: Set Profile (New User) -->
+    <div id="auth-step-profile" style="display:none;">
+      <h3 style="font-size:16px;color:var(--text);margin-bottom:6px;">Setup Your Profile</h3>
+      <p style="color:var(--text2);font-size:12.5px;margin-bottom:18px;line-height:1.5;">
+        We need a few details to make booking quick and secure.
+      </p>
+      <div class="form-row">
+        <div class="label">Full Name</div>
+        <input class="input" type="text" id="auth-name-input" placeholder="e.g. Senthil Kumar" />
+      </div>
+      <div class="form-row" style="margin-top:12px;">
+        <div class="label">Default Vehicle Number</div>
+        <input class="input" type="text" id="auth-vehicle-input" placeholder="e.g. TN 07 AB 1234" oninput="this.value=this.value.toUpperCase()" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="authSaveProfile()">💾 Save & Continue</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- SCRIPTS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/payments.js"></script>
+<script src="js/map.js"></script>
+<script src="js/booking.js"></script>
+<script src="js/weather-ev.js"></script>
+<script src="js/insights-host.js"></script>
+<script src="js/backend.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => console.log('Service Worker registered successfully:', reg.scope))
+        .catch((err) => console.error('Service Worker registration failed:', err));
+    });
+  }
+</script>
+</body>
+</html>

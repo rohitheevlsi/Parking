@@ -1,0 +1,33 @@
+{
+  "name": "PARK AI — Smart Parking for Chennai",
+  "short_name": "PARK AI",
+  "description": "Airbnb for parking in Chennai. Find guaranteed, affordable covered parking or list your empty driveway.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#04040f",
+  "theme_color": "#04040f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/neon/96/parking.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "https://img.icons8.com/neon/144/parking.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "https://img.icons8.com/neon/192/parking.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://img.icons8.com/neon/512/parking.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["utilities", "travel"]
+}
