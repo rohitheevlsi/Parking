@@ -37,7 +37,7 @@ function openBooking(lotId) {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   document.getElementById('bk-date').value = `${year}-${month}-${day}`;
-  
+
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   document.getElementById('bk-start-time').value = `${hours}:${minutes}`;
@@ -108,9 +108,10 @@ async function confirmBooking() {
   const base = lot.price * State.bookingDur;
   const total = Math.round(base + base * 0.05 + base * 0.18);
 
+  // Check slot availability against the backend (if online), or skip gracefully
   toast('Checking slot availability...', 'info');
   try {
-    const checkRes = await fetch('http://localhost:5000/api/slots/check', {
+    const checkRes = await fetch(`${BACKEND_URL}/api/slots/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -120,29 +121,30 @@ async function confirmBooking() {
         end_time: end_iso
       })
     });
-    const checkData = await checkRes.json();
-    if (!checkData.available) {
-      toast('This slot is temporarily conflicts with another booking. Auto-selecting a new slot...', 'warning');
-      // Retry with another code
-      confirmBooking();
-      return;
+    if (checkRes.ok) {
+      const checkData = await checkRes.json();
+      if (!checkData.available) {
+        toast('This slot conflicts with another booking. Auto-selecting a new slot...', 'warning');
+        confirmBooking(); // retry with a new spot code
+        return;
+      }
     }
   } catch (err) {
-    console.error("Slot availability check failed:", err);
+    console.warn("Slot availability check failed (offline?), proceeding:", err);
   }
 
-  // Pre-create pending booking details in client state
+  // Pre-create pending booking details
   const pendingBooking = {
-    booking_id: bookId,
-    lot_id: lot.id,
-    lot_name: lot.name,
-    lot_area: lot.area,
-    spot_code: spot,
-    vehicle: vehicle,
+    booking_id:   bookId,
+    lot_id:       lot.id,
+    lot_name:     lot.name,
+    lot_area:     lot.area,
+    spot_code:    spot,
+    vehicle:      vehicle,
     duration_hrs: State.bookingDur,
-    start_time: start_iso,
-    end_time: end_iso,
-    total_paid: total
+    start_time:   start_iso,
+    end_time:     end_iso,
+    total_paid:   total
   };
 
   // Launch payments checkout flow
@@ -158,9 +160,9 @@ async function confirmBooking() {
     async (payResponse) => {
       toast('Payment verified! Confirming booking...', 'success');
       try {
-        const createRes = await fetch('http://localhost:5000/api/bookings', {
+        const createRes = await fetch(`${BACKEND_URL}/api/bookings`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${Auth.token}`
           },
@@ -169,15 +171,21 @@ async function confirmBooking() {
         const createData = await createRes.json();
         if (!createRes.ok) throw new Error(createData.error || 'Server failed to save booking');
 
-        // Confirm locally
-        State.activeBooking = {
+        // Build active booking state object
+        const activeB = {
           lot, spot, bookId, vehicle,
           dur: State.bookingDur,
           total,
           endTime: endDt.getTime(),
           start_time: start_iso,
-          end_time: end_iso
+          end_time: end_iso,
+          ts: Date.now()
         };
+
+        State.activeBooking = activeB;
+
+        // Also persist to localStorage as session backup
+        if (typeof DB !== 'undefined') DB.push('bookings', activeB);
 
         // Render success screen
         document.getElementById('booking-form').style.display    = 'none';
@@ -231,7 +239,7 @@ function startActiveBookingTimer(endTime) {
     const s = secs % 60;
     const el = document.getElementById('bk-timer');
     if (el) el.textContent = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-    
+
     if (secs <= 0) {
       clearInterval(State.bookingTimer);
       toast('⏰ Your parking session has ended!', 'warning');
@@ -247,7 +255,7 @@ function renderActiveBooking() {
     return;
   }
   const b = State.activeBooking;
-  
+
   const endTs = new Date(b.end_time || b.endTime).getTime();
 
   banner.style.display = 'flex';
@@ -286,17 +294,17 @@ function renderActiveBooking() {
       if (el) el.textContent = "00:00:00";
     }
   };
-  
+
   updateBannerTimer();
   State._bannerTimer = setInterval(updateBannerTimer, 1000);
 }
 
 async function cancelActiveBooking(bookingId) {
   if (!confirm("Are you sure you want to cancel this booking? Refunds are available only for cancellations made at least 30 minutes before booking start.")) return;
-  
+
   toast('Cancelling booking...', 'info');
   try {
-    const res = await fetch(`http://localhost:5000/api/bookings/${bookingId}/cancel`, {
+    const res = await fetch(`${BACKEND_URL}/api/bookings/${bookingId}/cancel`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -307,11 +315,11 @@ async function cancelActiveBooking(bookingId) {
     if (!res.ok) throw new Error(data.error || 'Failed to cancel booking');
 
     toast('✅ Booking successfully cancelled & refund initiated!', 'success');
-    
+
     // Clear active state
     clearInterval(State.bookingTimer);
     clearInterval(State._bannerTimer);
-    
+
     // Restore lot availability count locally
     const lotId = State.activeBooking.lot.id;
     const idx = LOTS.findIndex(l => l.id === lotId);
@@ -326,7 +334,7 @@ async function cancelActiveBooking(bookingId) {
         updateMapStats();
       }
     }
-    
+
     State.activeBooking = null;
     renderActiveBooking();
     setTimeout(renderBookingHistory, 400);
@@ -345,10 +353,10 @@ async function extendBooking() {
   const newEnd = new Date(currentEnd.getTime() + extraHours * 3600 * 1000);
   const nextHourCost = b.lot.price;
 
-  // Let's do double check validation
+  // Validate extend availability
   toast('Checking extend availability...', 'info');
   try {
-    const checkRes = await fetch('http://localhost:5000/api/slots/check', {
+    const checkRes = await fetch(`${BACKEND_URL}/api/slots/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -358,13 +366,15 @@ async function extendBooking() {
         end_time: newEnd.toISOString()
       })
     });
-    const checkData = await checkRes.json();
-    if (!checkData.available) {
-      toast('Cannot extend. This spot is already booked by another user right after your slot.', 'error');
-      return;
+    if (checkRes.ok) {
+      const checkData = await checkRes.json();
+      if (!checkData.available) {
+        toast('Cannot extend. This spot is already booked by another user right after your slot.', 'error');
+        return;
+      }
     }
   } catch (err) {
-    console.error("Extend availability check failed:", err);
+    console.warn("Extend availability check failed (offline?), proceeding:", err);
   }
 
   // Payment checkout for extend fee
@@ -380,9 +390,9 @@ async function extendBooking() {
     async () => {
       toast('Extension payment verified! Syncing...', 'success');
       try {
-        const extendRes = await fetch(`http://localhost:5000/api/bookings/${b.bookId || b.booking_id}/extend`, {
+        const extendRes = await fetch(`${BACKEND_URL}/api/bookings/${b.bookId || b.booking_id}/extend`, {
           method: 'PUT',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${Auth.token}`
           },
@@ -400,7 +410,7 @@ async function extendBooking() {
         b.endTime = newEnd.getTime();
 
         toast('⏱ Booking extended successfully!', 'success');
-        
+
         startActiveBookingTimer(b.endTime);
         renderActiveBooking();
         setTimeout(renderBookingHistory, 400);

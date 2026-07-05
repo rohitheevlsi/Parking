@@ -289,7 +289,7 @@ function renderBackendStatus() {
     el.innerHTML = `<span class="badge badge-teal" style="font-size:10.5px;">🟢 Live Python Server Connected</span>`;
   } else {
     // If backend script loads but server not active, we still check server connection
-    fetch('http://localhost:5000/api/bookings?limit=1')
+    fetch('http://localhost:5000/api/listings')
       .then(res => {
         if (res.ok) {
           el.innerHTML = `<span class="badge badge-teal" style="font-size:10.5px;">🟢 Live Python Server Connected</span>`;
