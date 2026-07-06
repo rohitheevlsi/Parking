@@ -27,15 +27,74 @@ const Auth = {
           localStorage.setItem('parkai_user', JSON.stringify(user));
           this.updateUI();
           this.triggerOnLogin();
+          this.checkPendingActions();
         } else {
           this.logout();
         }
       }).catch(() => {
         // network issue, keep local copy
         this.updateUI();
+        this.checkPendingActions();
       });
     } else {
       this.updateUI();
+    }
+  },
+
+  checkPendingActions() {
+    const actionStr = sessionStorage.getItem('parkai_pending_action');
+    if (!actionStr) return;
+    
+    try {
+      const action = JSON.parse(actionStr);
+      sessionStorage.removeItem('parkai_pending_action');
+      
+      if (action.type === 'book' && action.lotId) {
+        if (typeof openBooking === 'function') {
+          setTimeout(() => {
+            openBooking(action.lotId);
+            toast('🔑 Resuming your booking reservation...', 'success');
+          }, 800);
+        }
+      } else if (action.type === 'host') {
+        const formDataStr = sessionStorage.getItem('parkai_pending_host_form');
+        if (formDataStr) {
+          const formData = JSON.parse(formDataStr);
+          sessionStorage.removeItem('parkai_pending_host_form');
+          
+          setTimeout(() => {
+            // Switch to host tab
+            const hostTabBtn = document.querySelector('.nav-item[data-tab="host"]');
+            if (hostTabBtn && typeof switchTab === 'function') {
+              switchTab('host', hostTabBtn);
+              if (typeof syncMobileNav === 'function') syncMobileNav(hostTabBtn);
+            }
+            if (typeof setHostView === 'function') {
+              setHostView('host');
+            }
+            
+            // Fill in fields
+            const fields = ['name', 'spots', 'rate', 'from', 'to', 'address'];
+            fields.forEach(f => {
+              const el = document.getElementById(`new-lot-${f}`);
+              if (el && formData[f] !== undefined) el.value = formData[f];
+            });
+            const typeEl = document.getElementById('new-lot-type');
+            if (typeEl && formData.type) typeEl.value = formData.type;
+            
+            if (typeof updateListingPreview === 'function') {
+              updateListingPreview();
+            }
+            
+            toast('📝 Resuming your parking space listing...', 'success');
+            if (typeof submitNewListing === 'function') {
+              submitNewListing();
+            }
+          }, 1000);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse pending action:", e);
     }
   },
 
@@ -144,21 +203,23 @@ const Auth = {
     setTimeout(() => window.location.reload(), 800);
   },
 
-  showAuthModal(onSuccess = null) {
-    const modal = document.getElementById('auth-modal-overlay');
-    if (modal) {
-      modal.classList.add('open');
-      // Reset flow to first step (phone prompt)
-      document.getElementById('auth-step-phone').style.display = 'block';
-      document.getElementById('auth-step-otp').style.display = 'none';
-      document.getElementById('auth-step-profile').style.display = 'none';
-      document.getElementById('auth-phone-input').value = '';
-      document.getElementById('auth-otp-input').value = '';
-      
-      if (onSuccess) {
-        this.tempSuccessCallback = onSuccess;
+  showAuthModal(onSuccess = null, actionObj = null) {
+    if (actionObj) {
+      sessionStorage.setItem('parkai_pending_action', JSON.stringify(actionObj));
+      if (actionObj.type === 'host') {
+        const hostData = {
+          name: document.getElementById('new-lot-name')?.value || '',
+          type: document.getElementById('new-lot-type')?.value || '',
+          spots: document.getElementById('new-lot-spots')?.value || '',
+          rate: document.getElementById('new-lot-rate')?.value || '',
+          from: document.getElementById('new-lot-from')?.value || '',
+          to: document.getElementById('new-lot-to')?.value || '',
+          address: document.getElementById('new-lot-address')?.value || ''
+        };
+        sessionStorage.setItem('parkai_pending_host_form', JSON.stringify(hostData));
       }
     }
+    window.location.href = 'login.html';
   },
 
   closeAuthModal() {
@@ -184,6 +245,9 @@ const Auth = {
   showProfileManagement() {
     const modal = document.getElementById('auth-modal-overlay');
     if (!modal) return;
+    
+    const titleEl = document.getElementById('auth-modal-title');
+    if (titleEl) titleEl.innerHTML = '👤 Profile Settings';
     
     modal.classList.add('open');
     document.getElementById('auth-step-phone').style.display = 'none';

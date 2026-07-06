@@ -189,7 +189,7 @@ function renderHostEarningsChart() {
 async function submitNewListing() {
   if (!Auth.isAuthenticated()) {
     toast('🔑 Please login to list your space', 'warning');
-    Auth.showAuthModal(() => submitNewListing());
+    Auth.showAuthModal(null, { type: 'host' });
     return;
   }
 

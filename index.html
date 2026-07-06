@@ -1306,43 +1306,23 @@
   </div>
 </div>
 
-<!-- AUTH MODAL -->
+<!-- PROFILE SETTINGS MODAL (Reused from auth-modal-overlay) -->
 <div class="edit-modal-overlay" id="auth-modal-overlay" onclick="if(event.target===this)Auth.closeAuthModal()">
   <div class="edit-modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <h2 style="font-size:20px;" id="auth-modal-title">🔐 Authentication</h2>
+      <h2 style="font-size:20px;" id="auth-modal-title">👤 Profile Settings</h2>
       <button class="btn btn-ghost btn-icon" onclick="Auth.closeAuthModal()" style="font-size:18px;">✕</button>
     </div>
 
-    <!-- Step 1: Input Phone -->
-    <div id="auth-step-phone">
-      <p style="color:var(--text2);font-size:13px;margin-bottom:18px;line-height:1.5;">
-        Enter your 10-digit mobile number to verify your account with a secure one-time passcode (OTP).
-      </p>
-      <div class="form-row">
-        <div class="label">Mobile Number</div>
-        <input class="input" type="tel" id="auth-phone-input" placeholder="e.g. 9876543210" maxlength="10" />
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="authSendOTP()">✉️ Send OTP Passcode</button>
-    </div>
+    <!-- Hidden placeholders to avoid JS errors in auth.js references -->
+    <div id="auth-step-phone" style="display:none;"></div>
+    <div id="auth-step-otp" style="display:none;"></div>
 
-    <!-- Step 2: Input OTP -->
-    <div id="auth-step-otp" style="display:none;">
-      <p style="color:var(--text2);font-size:13px;margin-bottom:18px;line-height:1.5;">
-        Passcode sent! Enter the 6-digit verification code below.
-      </p>
-      <div class="form-row">
-        <div class="label">Verification Code</div>
-        <input class="input" type="text" id="auth-otp-input" placeholder="123456" maxlength="6" style="text-align:center;font-size:18px;letter-spacing:8px;" />
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:10px;" onclick="authVerifyOTP()">🔑 Verify Code</button>
-    </div>
-
-    <!-- Step 3: Set Profile (New User) -->
-    <div id="auth-step-profile" style="display:none;">
-      <h3 style="font-size:16px;color:var(--text);margin-bottom:6px;">Setup Your Profile</h3>
+    <!-- Profile details update step -->
+    <div id="auth-step-profile">
+      <h3 style="font-size:16px;color:var(--text);margin-bottom:6px;">Update Your Profile</h3>
       <p style="color:var(--text2);font-size:12.5px;margin-bottom:18px;line-height:1.5;">
-        We need a few details to make booking quick and secure.
+        Update your personal details and vehicle plate configuration.
       </p>
       <div class="form-row">
         <div class="label">Full Name</div>
@@ -1352,7 +1332,7 @@
         <div class="label">Default Vehicle Number</div>
         <input class="input" type="text" id="auth-vehicle-input" placeholder="e.g. TN 07 AB 1234" oninput="this.value=this.value.toUpperCase()" />
       </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="authSaveProfile()">💾 Save & Continue</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="authSaveProfile()">💾 Save Changes</button>
     </div>
   </div>
 </div>

@@ -40,6 +40,10 @@ def get_user_from_request():
 def serve_index():
     return send_from_directory('.', 'index.html')
 
+@app.route('/login')
+def serve_login():
+    return send_from_directory('.', 'login.html')
+
 # ==========================================
 # 🔐 AUTHENTICATION ENDPOINTS
 # ==========================================

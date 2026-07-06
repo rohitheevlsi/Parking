@@ -6,7 +6,7 @@ function openBooking(lotId) {
   // Guard clause: requires authentication
   if (!Auth.isAuthenticated()) {
     toast('🔑 Please login to book a spot', 'warning');
-    Auth.showAuthModal(() => openBooking(lotId));
+    Auth.showAuthModal(null, { type: 'book', lotId: lotId });
     return;
   }
 

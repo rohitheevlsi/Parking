@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Sign In or Sign Up to PARK AI — Smart Parking for Chennai." />
+  <meta name="theme-color" content="#04040f" />
+  <title>🔐 Sign In — PARK AI</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ---- DESIGN TOKENS ---- */
+    :root {
+      --bg:       #04040f;
+      --bg2:      #08081a;
+      --bg3:      #0d0d24;
+      --surface:  rgba(255,255,255,0.02);
+      --surface2: rgba(255,255,255,0.05);
+      --border:   rgba(255,255,255,0.07);
+      --border2:  rgba(255,255,255,0.14);
+
+      --teal:   #00ffd1;
+      --violet: #a855f7;
+      --amber:  #ffb830;
+      --red:    #ff3366;
+      --blue:   #38bdf8;
+
+      --grad-teal:   linear-gradient(135deg, #00ffd1 0%, #0ea5e9 100%);
+      --grad-violet: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+      --grad-amber:  linear-gradient(135deg, #ffb830 0%, #ff6a00 100%);
+
+      --glow-teal:   0 0 32px rgba(0,255,209,0.25);
+      --glow-violet: 0 0 32px rgba(168,85,247,0.25);
+      --glow-amber:  0 0 32px rgba(255,184,48,0.25);
+
+      --font-display: 'Bebas Neue', 'Arial Black', Impact, sans-serif;
+      --font-body:    'Space Grotesk', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --font-mono:    'DM Mono', 'Consolas', 'Courier New', monospace;
+
+      --r:   12px;
+      --r2:  20px;
+      --r3:  28px;
+
+      --text:  #f0f4ff;
+      --text2: #94a3b8;
+      --text3: #64748b;
+    }
+
+    /* ---- RESET & SCROLLBAR ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14.5px;
+      line-height: 1.6;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Ambient animated mesh glows */
+    .glow-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    .glow-1 {
+      top: -10%;
+      right: -10%;
+      width: 50vw;
+      height: 50vw;
+      background: radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%);
+      animation: float-glow-1 20s infinite alternate ease-in-out;
+    }
+    .glow-2 {
+      bottom: -10%;
+      left: -10%;
+      width: 45vw;
+      height: 45vw;
+      background: radial-gradient(circle, rgba(0,255,209,0.12) 0%, transparent 70%);
+      animation: float-glow-2 25s infinite alternate ease-in-out;
+    }
+
+    @keyframes float-glow-1 {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-80px, 50px) scale(1.1); }
+    }
+    @keyframes float-glow-2 {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(60px, -40px) scale(1.05); }
+    }
+
+    /* ---- TOAST SYSTEM ---- */
+    #toast-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 360px;
+      pointer-events: none;
+    }
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: rgba(8,8,26,0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border2);
+      border-radius: var(--r);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+      animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+      font-size: 13.5px;
+      pointer-events: all;
+    }
+    .toast.success { border-left: 3px solid var(--teal); }
+    .toast.error   { border-left: 3px solid var(--red); }
+    .toast.info    { border-left: 3px solid var(--blue); }
+    .toast.warning { border-left: 3px solid var(--amber); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px) scale(0.96); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    @keyframes toastOut {
+      to { opacity: 0; transform: translateX(20px) scale(0.96); }
+    }
+    .toast.removing { animation: toastOut 0.3s ease forwards; }
+
+    /* ---- LAYOUT ---- */
+    .login-container {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Left pane: Branding and visual graphics */
+    .visual-panel {
+      flex: 1.1;
+      background: linear-gradient(135deg, rgba(8, 8, 26, 0.8), rgba(4, 4, 15, 0.95));
+      border-right: 1px solid var(--border);
+      padding: 60px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+    .visual-panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at 30% 40%, rgba(0, 255, 209, 0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      background: var(--grad-teal);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #030307;
+      box-shadow: var(--glow-teal);
+      transition: transform 0.3s ease;
+    }
+    .brand-header:hover .logo-mark {
+      transform: rotate(-5deg) scale(1.05);
+    }
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 28px;
+      letter-spacing: 0.06em;
+      color: var(--text);
+    }
+    .logo-text span {
+      color: var(--teal);
+    }
+
+    .showcase-content {
+      max-width: 520px;
+      z-index: 1;
+    }
+    .showcase-title {
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      letter-spacing: -0.02em;
+    }
+    .showcase-title span {
+      background: var(--grad-teal);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .features-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin-top: 36px;
+    }
+    .feature-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .feature-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--teal);
+      flex-shrink: 0;
+      box-shadow: inset 0 0 12px rgba(255,255,255,0.02);
+    }
+    .feature-text h4 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .feature-text p {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+
+    .visual-footer {
+      font-size: 12px;
+      color: var(--text3);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Right pane: Dedicated Form */
+    .form-panel {
+      flex: 0.9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      position: relative;
+    }
+
+    .glass-card {
+      width: 100%;
+      max-width: 460px;
+      background: rgba(8, 8, 26, 0.45);
+      backdrop-filter: blur(35px);
+      border: 1px solid var(--border2);
+      border-radius: var(--r2);
+      padding: 44px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      position: relative;
+      z-index: 10;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text2);
+      text-decoration: none;
+      margin-bottom: 28px;
+      transition: color 0.2s;
+    }
+    .back-link:hover {
+      color: var(--teal);
+    }
+
+    .form-header {
+      margin-bottom: 30px;
+    }
+    .form-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+    .form-subtitle {
+      font-size: 13.5px;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+
+    /* ---- FORM ELEMENTS ---- */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-prefix {
+      position: absolute;
+      left: 16px;
+      font-size: 14.5px;
+      font-weight: 500;
+      color: var(--text3);
+      border-right: 1px solid var(--border);
+      padding-right: 12px;
+      user-select: none;
+    }
+    .form-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 18px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14.5px;
+      outline: none;
+      transition: all 0.25s ease;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .form-input-prefixed {
+      padding-left: 64px;
+    }
+    .form-input:focus {
+      border-color: rgba(0, 255, 209, 0.5);
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: 0 0 16px rgba(0, 255, 209, 0.08), inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* OTP Inputs Group */
+    .otp-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .otp-field {
+      width: 100%;
+      height: 52px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--text);
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      outline: none;
+      transition: all 0.2s;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .otp-field:focus {
+      border-color: var(--teal);
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: var(--glow-teal), inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* Avatar Grid for Setup */
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .avatar-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 12px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 22px;
+      user-select: none;
+    }
+    .avatar-item span {
+      display: block;
+      font-size: 10px;
+      color: var(--text3);
+      margin-top: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .avatar-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border2);
+    }
+    .avatar-item.selected {
+      background: rgba(0, 255, 209, 0.05);
+      border-color: var(--teal);
+      box-shadow: var(--glow-teal);
+    }
+    .avatar-item.selected span {
+      color: var(--teal);
+    }
+
+    /* Buttons */
+    .btn-submit {
+      width: 100%;
+      background: var(--grad-teal);
+      color: #030307;
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 14px;
+      border: none;
+      border-radius: var(--r);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      box-shadow: var(--glow-teal);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 40px rgba(0, 255, 209, 0.45);
+    }
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+    .btn-submit:disabled {
+      background: var(--surface2);
+      color: var(--text3);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .resend-box {
+      text-align: center;
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--text2);
+    }
+    .resend-link {
+      color: var(--teal);
+      text-decoration: none;
+      font-weight: 600;
+      margin-left: 4px;
+      cursor: pointer;
+    }
+    .resend-link.disabled {
+      color: var(--text3);
+      cursor: not-allowed;
+    }
+
+    /* Info Alerts */
+    .dev-mode-alert {
+      background: rgba(0, 255, 209, 0.05);
+      border: 1px solid rgba(0, 255, 209, 0.15);
+      border-radius: var(--r);
+      padding: 12px 16px;
+      font-size: 12.5px;
+      color: var(--teal);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ---- WIZARD TRANSITIONS ---- */
+    .step-section {
+      display: none;
+      animation: fadeIn 0.4s ease forwards;
+    }
+    .step-section.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---- RESPONSIVE ---- */
+    @media (max-width: 900px) {
+      .visual-panel {
+        display: none;
+      }
+      .form-panel {
+        flex: 1;
+        background: radial-gradient(circle at center, rgba(168,85,247,0.06) 0%, transparent 60%);
+      }
+      .glass-card {
+        padding: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Glowing Circles -->
+  <div class="glow-blob glow-1"></div>
+  <div class="glow-blob glow-2"></div>
+
+  <!-- Toast system container -->
+  <div id="toast-container"></div>
+
+  <div class="login-container">
+    <!-- Visual Left Showcase -->
+    <div class="visual-panel">
+      <a href="index.html" class="brand-header">
+        <div class="logo-mark">🚗</div>
+        <div class="logo-text">PARK <span>AI</span></div>
+      </a>
+
+      <div class="showcase-content">
+        <h2 class="showcase-title">Secure a parking spot <span>instantly</span> in Chennai.</h2>
+        <p style="color: var(--text2); font-size: 15px; line-height: 1.6;">
+          PARK AI connects private driveway hosts and smart commercial garages to local drivers. Seamlessly charge your EV, pay with Razorpay, and track slot availability.
+        </p>
+
+        <div class="features-list">
+          <div class="feature-item">
+            <div class="feature-icon">⚡</div>
+            <div class="feature-text">
+              <h4>EV Fast Charging</h4>
+              <p>Filter spots with verified AC/DC EV fast-chargers near your destination.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🏠</div>
+            <div class="feature-text">
+              <h4>Verified Home Driveways</h4>
+              <p>Park at secure, resident-hosted gated driveways with custom access codes.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🛡️</div>
+            <div class="feature-text">
+              <h4>CCTV & Safety Covered</h4>
+              <p>24/7 smart IoT occupancy monitoring and site safety guarantees.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="visual-footer">
+        <span>© 2026 PARK AI Technologies</span>
+        <span>Smart Parking for Chennai</span>
+      </div>
+    </div>
+
+    <!-- Right Side Dynamic Wizard Panel -->
+    <div class="form-panel">
+      <div class="glass-card">
+        <a href="index.html" class="back-link">
+          <span>←</span> Back to Map View
+        </a>
+
+        <!-- STEP 1: ENTER PHONE -->
+        <div id="step-phone" class="step-section active">
+          <div class="form-header">
+            <h1 class="form-title">Welcome to PARK AI</h1>
+            <p class="form-subtitle">Enter your phone number to Sign In or Sign Up instantly. No password required.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Phone Number</label>
+            <div class="input-wrapper">
+              <span class="input-prefix">+91</span>
+              <input type="tel" id="input-phone" class="form-input form-input-prefixed" placeholder="98765 43210" maxlength="10" autocomplete="tel" />
+            </div>
+          </div>
+
+          <button id="btn-send-otp" class="btn-submit" onclick="requestOTP()">
+            <span>Send Secure OTP</span>
+            <span style="font-size:13.5px;">→</span>
+          </button>
+        </div>
+
+        <!-- STEP 2: VERIFY OTP -->
+        <div id="step-otp" class="step-section">
+          <div class="form-header">
+            <h1 class="form-title">Enter Passcode</h1>
+            <p class="form-subtitle" id="otp-subtitle">We sent a 6-digit code to +91 9876543210. Verify below.</p>
+          </div>
+
+          <!-- Dev Mode helper notification -->
+          <div id="dev-otp-helper" class="dev-mode-alert" style="display:none;">
+            <span style="font-size: 16px;">🔬</span>
+            <span>Dev Mode: Found OTP <strong id="dev-otp-code" style="color:var(--text);font-family:var(--font-mono);letter-spacing:1px;">------</strong> (Auto-filled)</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="text-align: center;">Verification Code</label>
+            <div class="otp-grid">
+              <input type="text" maxlength="1" class="otp-field" id="otp-1" inputmode="numeric" autocomplete="one-time-code" />
+              <input type="text" maxlength="1" class="otp-field" id="otp-2" inputmode="numeric" />
+              <input type="text" maxlength="1" class="otp-field" id="otp-3" inputmode="numeric" />
+              <input type="text" maxlength="1" class="otp-field" id="otp-4" inputmode="numeric" />
+              <input type="text" maxlength="1" class="otp-field" id="otp-5" inputmode="numeric" />
+              <input type="text" maxlength="1" class="otp-field" id="otp-6" inputmode="numeric" />
+            </div>
+          </div>
+
+          <button id="btn-verify-otp" class="btn-submit" onclick="submitOTP()">
+            <span>Verify & Continue</span>
+            <span style="font-size:13.5px;">✓</span>
+          </button>
+
+          <div class="resend-box">
+            Didn't receive the code?
+            <span id="resend-timer" class="resend-link disabled">Resend (30s)</span>
+          </div>
+        </div>
+
+        <!-- STEP 3: SETUP PROFILE -->
+        <div id="step-profile" class="step-section">
+          <div class="form-header">
+            <h1 class="form-title">Complete Profile</h1>
+            <p class="form-subtitle">Tell us about yourself to complete your registration.</p>
+          </div>
+
+          <!-- Select avatar -->
+          <div class="form-group">
+            <label class="form-label">Select Driver Avatar</label>
+            <div class="avatar-grid">
+              <div class="avatar-item selected" onclick="selectAvatar('🚗', this)">🚗 <span>Sedan</span></div>
+              <div class="avatar-item" onclick="selectAvatar('🛵', this)">🛵 <span>Scooter</span></div>
+              <div class="avatar-item" onclick="selectAvatar('⚡', this)">⚡ <span>EV Driver</span></div>
+              <div class="avatar-item" onclick="selectAvatar('🚙', this)">🚙 <span>SUV</span></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" id="profile-name" class="form-input" placeholder="e.g. Senthil Kumar" autocomplete="name" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Vehicle Registration Number</label>
+            <input type="text" id="profile-vehicle" class="form-input" placeholder="e.g. TN 07 AB 1234" oninput="this.value=this.value.toUpperCase()" style="text-transform: uppercase;" />
+          </div>
+
+          <button id="btn-save-profile" class="btn-submit" onclick="submitProfile()">
+            <span>Complete Setup</span>
+            <span style="font-size:13.5px;">🎉</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- JS Logic -->
+  <script>
+    // Constants
+    const BACKEND_URL = 'http://localhost:5000';
+    
+    // State variables
+    let userPhone = '';
+    let selectedAvatar = '🚗';
+    let resendCountdown = 30;
+    let resendTimerInterval = null;
+
+    // Toast utility
+    function toast(msg, type='info', duration=3500) {
+      const tc = document.getElementById('toast-container');
+      if (!tc) return;
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      const icons = { success:'✅', error:'🚨', info:'ℹ️', warning:'⚠️' };
+      el.innerHTML = `<span>${icons[type]||'•'}</span><span>${msg}</span>`;
+      tc.appendChild(el);
+      setTimeout(() => {
+        el.classList.add('removing');
+        setTimeout(() => el.remove(), 300);
+      }, duration);
+    }
+
+    // Phone number input formatter and validation
+    const phoneInput = document.getElementById('input-phone');
+    phoneInput.addEventListener('input', (e) => {
+      // allow only digits
+      e.target.value = e.target.value.replace(/\D/g, '');
+    });
+
+    // Auto-focus behavior for OTP fields
+    const otpFields = Array.from(document.querySelectorAll('.otp-field'));
+    otpFields.forEach((field, index) => {
+      field.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '');
+        if (e.target.value.length === 1 && index < 5) {
+          otpFields[index + 1].focus();
+        }
+        checkVerifyBtnState();
+      });
+
+      field.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && e.target.value.length === 0 && index > 0) {
+          otpFields[index - 1].focus();
+        }
+      });
+      
+      field.addEventListener('paste', (e) => {
+        const pasteData = e.clipboardData.getData('text').trim();
+        if (pasteData.length === 6 && /^\d+$/.test(pasteData)) {
+          e.preventDefault();
+          otpFields.forEach((f, i) => {
+            f.value = pasteData[i];
+          });
+          otpFields[5].focus();
+          checkVerifyBtnState();
+        }
+      });
+    });
+
+    function checkVerifyBtnState() {
+      const allFilled = otpFields.every(f => f.value.length === 1);
+      document.getElementById('btn-verify-otp').disabled = !allFilled;
+    }
+    
+    // Set initial verify button disabled state
+    checkVerifyBtnState();
+
+    // Step navigation helper
+    function showStep(stepId) {
+      document.querySelectorAll('.step-section').forEach(s => s.classList.remove('active'));
+      const activeStep = document.getElementById(stepId);
+      activeStep.classList.add('active');
+      
+      // Auto focus primary inputs
+      if (stepId === 'step-phone') {
+        document.getElementById('input-phone').focus();
+      } else if (stepId === 'step-otp') {
+        otpFields[0].focus();
+      } else if (stepId === 'step-profile') {
+        document.getElementById('profile-name').focus();
+      }
+    }
+
+    // API: Request OTP
+    async function requestOTP() {
+      const phone = phoneInput.value.trim();
+      if (phone.length < 10) {
+        toast('Please enter a valid 10-digit mobile number', 'error');
+        return;
+      }
+
+      userPhone = phone;
+      document.getElementById('btn-send-otp').disabled = true;
+      document.getElementById('btn-send-otp').innerHTML = 'Sending OTP...';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || 'Failed to request verification code');
+        
+        toast('OTP Code sent successfully!', 'success');
+        document.getElementById('otp-subtitle').textContent = `We sent a 6-digit code to +91 ${phone.slice(0,5)} ${phone.slice(5)}. Verify below.`;
+        
+        // Handle Dev mode auto-fill
+        const devHelper = document.getElementById('dev-otp-helper');
+        if (data.debug_otp) {
+          document.getElementById('dev-otp-code').textContent = data.debug_otp;
+          devHelper.style.display = 'flex';
+          
+          // Auto fill fields
+          otpFields.forEach((f, i) => {
+            f.value = data.debug_otp[i];
+          });
+          checkVerifyBtnState();
+          toast(`Dev Mode: Auto-filled code ${data.debug_otp}`, 'success');
+        } else {
+          devHelper.style.display = 'none';
+        }
+
+        startResendTimer();
+        showStep('step-otp');
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        document.getElementById('btn-send-otp').disabled = false;
+        document.getElementById('btn-send-otp').innerHTML = '<span>Send Secure OTP</span><span style="font-size:13.5px;">→</span>';
+      }
+    }
+
+    // Resend Timer countdown
+    function startResendTimer() {
+      clearInterval(resendTimerInterval);
+      resendCountdown = 30;
+      const resendEl = document.getElementById('resend-timer');
+      resendEl.classList.add('disabled');
+      resendEl.textContent = `Resend (${resendCountdown}s)`;
+      resendEl.onclick = null;
+
+      resendTimerInterval = setInterval(() => {
+        resendCountdown--;
+        if (resendCountdown <= 0) {
+          clearInterval(resendTimerInterval);
+          resendEl.textContent = 'Resend Code';
+          resendEl.classList.remove('disabled');
+          resendEl.onclick = () => {
+            requestOTP();
+          };
+        } else {
+          resendEl.textContent = `Resend (${resendCountdown}s)`;
+        }
+      }, 1000);
+    }
+
+    // API: Verify OTP code
+    async function submitOTP() {
+      const otpCode = otpFields.map(f => f.value).join('');
+      if (otpCode.length < 6) {
+        toast('Please enter the 6-digit code', 'error');
+        return;
+      }
+
+      document.getElementById('btn-verify-otp').disabled = true;
+      document.getElementById('btn-verify-otp').innerHTML = 'Verifying...';
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: userPhone, otp: otpCode })
+        });
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error || 'Incorrect passcode entered');
+
+        // Store active user session tokens
+        localStorage.setItem('parkai_auth_token', data.token);
+        localStorage.setItem('parkai_user', JSON.stringify(data.user));
+
+        if (data.is_new_user) {
+          showStep('step-profile');
+        } else {
+          toast(`Success! Welcome back, ${data.user.name || 'Driver'}`, 'success');
+          completeAuthFlow();
+        }
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        document.getElementById('btn-verify-otp').disabled = false;
+        document.getElementById('btn-verify-otp').innerHTML = '<span>Verify & Continue</span><span style="font-size:13.5px;">✓</span>';
+        checkVerifyBtnState();
+      }
+    }
+
+    // Avatar Selection Action
+    function selectAvatar(emoji, element) {
+      selectedAvatar = emoji;
+      document.querySelectorAll('.avatar-item').forEach(item => item.classList.remove('selected'));
+      element.classList.add('selected');
+    }
+
+    // API: Profile Update
+    async function submitProfile() {
+      const name = document.getElementById('profile-name').value.trim();
+      const vehicle = document.getElementById('profile-vehicle').value.trim();
+      const token = localStorage.getItem('parkai_auth_token');
+
+      if (!name) {
+        toast('Name is required to complete profile setup', 'error');
+        return;
+      }
+
+      document.getElementById('btn-save-profile').disabled = true;
+      document.getElementById('btn-save-profile').innerHTML = 'Saving Profile...';
+
+      // Save custom emoji symbol prefixed to the name for character avatars
+      const nameWithAvatar = `${selectedAvatar} ${name}`;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/update-profile`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ name: nameWithAvatar, vehicle_no: vehicle })
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+
+        localStorage.setItem('parkai_user', JSON.stringify(data.user));
+        toast('Profile registered successfully!', 'success');
+        
+        completeAuthFlow();
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        document.getElementById('btn-save-profile').disabled = false;
+        document.getElementById('btn-save-profile').innerHTML = '<span>Complete Setup</span><span style="font-size:13.5px;">🎉</span>';
+      }
+    }
+
+    // Finish redirect
+    function completeAuthFlow() {
+      setTimeout(() => {
+        // Redirect back to index.html
+        window.location.href = 'index.html';
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
