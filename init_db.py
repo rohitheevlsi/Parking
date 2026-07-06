@@ -20,6 +20,7 @@ def init_db():
         phone TEXT NOT NULL UNIQUE,
         name TEXT,
         vehicle_no TEXT,
+        role TEXT DEFAULT 'driver',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')

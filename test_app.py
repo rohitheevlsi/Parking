@@ -41,6 +41,7 @@ class ParkAITestCase(unittest.TestCase):
                 phone TEXT UNIQUE NOT NULL,
                 name TEXT DEFAULT "",
                 vehicle_no TEXT DEFAULT "",
+                role TEXT DEFAULT "driver",
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')

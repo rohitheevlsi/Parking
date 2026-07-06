@@ -134,49 +134,21 @@
       <div class="logo-mark">🅿</div>
       <div class="logo-text">PARK<span>AI</span></div>
     </a>
-
-    <div class="nav-section">
-      <div class="nav-label">Dashboard</div>
-      <div class="nav-item active" data-tab="overview" onclick="switchTab('overview',this)">
-        <span class="icon">⚡</span> Overview
-        <span class="badge-dot"></span>
+    <!-- Portal Selector Dropdown -->
+    <div class="portal-selector-wrap">
+      <div class="portal-dropdown" id="portal-selector-btn" onclick="togglePortalDropdown()">
+        <span id="active-portal-icon">🌐</span> <span id="active-portal-text">Driver Portal</span>
+        <span style="margin-left:auto;font-size:10px;">▼</span>
       </div>
-      <div class="nav-item" data-tab="map" onclick="switchTab('map',this)">
-        <span class="icon">🗺</span> Live Map
-      </div>
-    </div>
-
-    <div class="nav-section">
-      <div class="nav-label">Host</div>
-      <div class="nav-item" data-tab="host" onclick="switchTab('host',this)">
-        <span class="icon">🏠</span> Host Portal
+      <div class="portal-options" id="portal-options-menu">
+        <div class="portal-option active" data-portal="driver" onclick="selectPortal('driver')">🌐 Driver Portal</div>
+        <div class="portal-option" data-portal="host" onclick="selectPortal('host')">🏠 Space Host Portal</div>
+        <div class="portal-option" data-portal="admin" onclick="selectPortal('admin')">🛠 Platform Admin Portal</div>
       </div>
     </div>
 
-    <div class="nav-section">
-      <div class="nav-label">Features</div>
-      <div class="nav-item" data-tab="ev" onclick="switchTab('ev',this)">
-        <span class="icon">⚡</span> EV Charging
-      </div>
-      <div class="nav-item" data-tab="weather" onclick="switchTab('weather',this)">
-        <span class="icon">🌤</span> Weather Hub
-      </div>
-      <div class="nav-item" data-tab="safety" onclick="switchTab('safety',this)">
-        <span class="icon">🛡</span> Safety Console
-      </div>
-      <div class="nav-item" data-tab="iot" onclick="switchTab('iot',this)">
-        <span class="icon">📡</span> IoT Sensors
-      </div>
-      <div class="nav-item" data-tab="insights" onclick="switchTab('insights',this)">
-        <span class="icon">📊</span> City Insights
-      </div>
-    </div>
-
-    <div class="nav-section">
-      <div class="nav-item" data-tab="why" onclick="switchTab('why',this)">
-        <span class="icon">🏆</span> Why PARK AI
-      </div>
-    </div>
+    <!-- Navigation container (dynamically rendered by portals.js) -->
+    <div id="dynamic-nav-container"></div>
 
     <div class="sidebar-footer">
       <div class="lang-select-wrap">
@@ -1149,6 +1121,167 @@
       </div>
     </div>
 
+    <!-- ===================== HOST: MY LISTINGS ===================== -->
+    <div class="pane" id="pane-host-listings">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:24px;">🏠 Gated Driveways & Listings</h2>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">Manage listings status, details, and active tenant reservations</div>
+      </div>
+
+      <div class="card" style="margin-bottom:28px;">
+        <div style="font-weight:700;font-size:16px;margin-bottom:16px;">📋 My Published Spaces</div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Listing Info</th>
+                <th>Spots Available</th>
+                <th>Hourly Rate</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="host-listings-container">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;font-size:16px;margin-bottom:16px;">📅 Reservations on My Spaces</div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Booking ID</th>
+                <th>Location Details</th>
+                <th>Vehicle</th>
+                <th>Start Date/Time</th>
+                <th>Amount Paid & Status</th>
+              </tr>
+            </thead>
+            <tbody id="host-bookings-container">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== ADMIN: DASHBOARD ===================== -->
+    <div class="pane" id="pane-admin-dashboard">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:24px;">📊 Platform Management Dashboard</h2>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">Global administrative controls, database parameters, and metrics</div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="admin-grid">
+        <div class="admin-card">
+          <div style="font-size:12px;color:var(--text3);font-weight:600;text-transform:uppercase;">TOTAL BOOKINGS</div>
+          <div class="admin-card-val" id="admin-stat-bookings" style="color:var(--teal);">0</div>
+          <div style="font-size:11px;color:var(--text2);">Completed platform check-ins</div>
+        </div>
+        <div class="admin-card">
+          <div style="font-size:12px;color:var(--text3);font-weight:600;text-transform:uppercase;">PLATFORM EARNINGS</div>
+          <div class="admin-card-val" id="admin-stat-earnings" style="color:var(--violet);">₹0</div>
+          <div style="font-size:11px;color:var(--text2);">Consolidated Razorpay receipts</div>
+        </div>
+        <div class="admin-card">
+          <div style="font-size:12px;color:var(--text3);font-weight:600;text-transform:uppercase;">ACTIVE PROPERTIES</div>
+          <div class="admin-card-val" id="admin-stat-listings" style="color:var(--amber);">0</div>
+          <div style="font-size:11px;color:var(--text2);">Verified commercial & P2P spaces</div>
+        </div>
+        <div class="admin-card">
+          <div style="font-size:12px;color:var(--text3);font-weight:600;text-transform:uppercase;">REGISTERED USERS</div>
+          <div class="admin-card-val" id="admin-stat-users" style="color:var(--blue);">0</div>
+          <div style="font-size:11px;color:var(--text2);">Drivers, Hosts & Administrators</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div style="font-weight:700;font-size:16px;margin-bottom:12px;">🛠 Admin Controls Quick Links</div>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:18px;">Easily perform operational workflows using the dynamic sidebar administration menu:</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-primary" onclick="switchTab('admin-approvals', document.querySelector('[data-tab=admin-approvals]'))">✓ Go to Pending Approvals Queue</button>
+            <button class="btn btn-ghost" onclick="switchTab('admin-users', document.querySelector('[data-tab=admin-users]'))">👥 Manage Users & Assign Roles</button>
+            <button class="btn btn-ghost" onclick="switchTab('iot', document.querySelector('[data-tab=iot]'))">📡 Monitor IoT Sensor Nodes</button>
+          </div>
+        </div>
+        
+        <div class="card" style="display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <div style="font-weight:700;font-size:16px;margin-bottom:8px;">🟢 Platform Operational Integrity</div>
+            <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px;">
+              PARK AI network services are running. SQLite db schema is in sync, and eventlet socket connections are online.
+            </p>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--text3);">
+            <span>System status: <strong>NORMAL</strong></span>
+            <span style="color:var(--teal);">● Online</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== ADMIN: APPROVALS QUEUE ===================== -->
+    <div class="pane" id="pane-admin-approvals">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:24px;">✓ Space Verification & Approvals</h2>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">Approve or reject newly registered driveways and parking properties</div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;font-size:16px;margin-bottom:16px;">🕒 Pending Activation Queue</div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Listing Property Details</th>
+                <th>Host Phone</th>
+                <th>Total Spots</th>
+                <th>Hourly Rate</th>
+                <th style="text-align:right;">Verify Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-approvals-container">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== ADMIN: USERS REGISTRY ===================== -->
+    <div class="pane" id="pane-admin-users">
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:24px;">👥 Platform Users & Roles</h2>
+        <div style="font-size:13px;color:var(--text2);margin-top:3px;">Manage driver profiles, parking space host designations, and edit permissions</div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:700;font-size:16px;margin-bottom:16px;">👥 Registered Drivers & Hosts</div>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Driver Name</th>
+                <th>Contact Phone</th>
+                <th>Registered Vehicle</th>
+                <th>Platform Role</th>
+                <th>Registration Date</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-container">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ===================== WHY PARK AI ===================== -->
     <div class="pane" id="pane-why">
       <div style="margin-bottom:24px;">
@@ -1350,6 +1483,7 @@
 <script src="js/insights-host.js"></script>
 <script src="js/backend.js"></script>
 <script src="js/app.js"></script>
+<script src="js/portals.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

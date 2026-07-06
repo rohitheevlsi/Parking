@@ -117,7 +117,8 @@ def verify_otp():
     
     if not user:
         # Create a blank user profile to be filled
-        cursor.execute('INSERT INTO users (phone, name, vehicle_no) VALUES (?, ?, ?)', (phone, '', ''))
+        role = 'admin' if phone == '9999999999' else 'driver'
+        cursor.execute('INSERT INTO users (phone, name, vehicle_no, role) VALUES (?, ?, ?, ?)', (phone, '', '', role))
         conn.commit()
         cursor.execute('SELECT * FROM users WHERE phone = ?', (phone,))
         user = cursor.fetchone()
@@ -673,6 +674,96 @@ def create_sensor_reading():
     conn.commit()
     conn.close()
     return jsonify({'success': True}), 201
+
+# ==========================================
+# ⚙️ ROLE-BASED PORTALS (HOST/ADMIN) ENDPOINTS
+# ==========================================
+
+@app.route('/api/host/bookings', methods=['GET'])
+def list_host_bookings():
+    phone = get_user_from_request()
+    if not phone:
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db_connection()
+    listings = conn.execute('SELECT id FROM host_listings WHERE user_phone = ?', (phone,)).fetchall()
+    lot_ids = [l['id'] for l in listings]
+    if not lot_ids:
+        conn.close()
+        return jsonify([])
+    placeholders = ','.join('?' for _ in lot_ids)
+    query = f'SELECT * FROM bookings WHERE lot_id IN ({placeholders}) ORDER BY created_at DESC'
+    bookings = conn.execute(query, lot_ids).fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in bookings])
+
+@app.route('/api/admin/listings', methods=['GET'])
+def admin_list_listings():
+    phone = get_user_from_request()
+    if not phone:
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db_connection()
+    user = conn.execute('SELECT role FROM users WHERE phone = ?', (phone,)).fetchone()
+    # Check if admin
+    if not user or user['role'] != 'admin':
+        conn.close()
+        return jsonify({'error': 'Forbidden - Admin Access Required'}), 403
+    listings = conn.execute('SELECT * FROM host_listings ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in listings])
+
+@app.route('/api/admin/listings/<int:listing_id>/status', methods=['PUT'])
+def admin_update_listing_status(listing_id):
+    phone = get_user_from_request()
+    if not phone:
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db_connection()
+    user = conn.execute('SELECT role FROM users WHERE phone = ?', (phone,)).fetchone()
+    if not user or user['role'] != 'admin':
+        conn.close()
+        return jsonify({'error': 'Forbidden - Admin Access Required'}), 403
+    data = request.json
+    status = data.get('status')
+    if not status:
+        conn.close()
+        return jsonify({'error': 'Status is required'}), 400
+    conn.execute('UPDATE host_listings SET status = ? WHERE id = ?', (status, listing_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/users', methods=['GET'])
+def admin_list_users():
+    phone = get_user_from_request()
+    if not phone:
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db_connection()
+    user = conn.execute('SELECT role FROM users WHERE phone = ?', (phone,)).fetchone()
+    if not user or user['role'] != 'admin':
+        conn.close()
+        return jsonify({'error': 'Forbidden - Admin Access Required'}), 403
+    users = conn.execute('SELECT id, phone, name, vehicle_no, role, created_at FROM users ORDER BY id DESC').fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in users])
+
+@app.route('/api/admin/users/<int:user_id>/role', methods=['PUT'])
+def admin_update_user_role(user_id):
+    phone = get_user_from_request()
+    if not phone:
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = get_db_connection()
+    user = conn.execute('SELECT role FROM users WHERE phone = ?', (phone,)).fetchone()
+    if not user or user['role'] != 'admin':
+        conn.close()
+        return jsonify({'error': 'Forbidden - Admin Access Required'}), 403
+    data = request.json
+    new_role = data.get('role')
+    if not new_role or new_role not in ['driver', 'host', 'admin']:
+        conn.close()
+        return jsonify({'error': 'Invalid role'}), 400
+    conn.execute('UPDATE users SET role = ? WHERE id = ?', (new_role, user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     print("Starting PARK AI backend on http://localhost:5000")
