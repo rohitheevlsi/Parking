@@ -60,6 +60,7 @@ const Portals = {
 
   init() {
     this.renderSidebarNav();
+    this.renderMobileNav();
     this.applyTheme('driver');
 
     // Register click handlers for dropdown toggles
@@ -109,6 +110,7 @@ const Portals = {
     this.currentPortal = portalKey;
     this.applyTheme(portalKey);
     this.renderSidebarNav();
+    this.renderMobileNav();
 
     // Re-render active portal dropdown selectors
     document.getElementById('active-portal-icon').textContent = PORTAL_THEMES[portalKey].icon;
@@ -176,6 +178,31 @@ const Portals = {
       });
 
       navContainer.appendChild(secEl);
+    });
+  },
+
+  renderMobileNav() {
+    const mobileNav = document.getElementById('mobile-nav');
+    if (!mobileNav) return;
+
+    mobileNav.innerHTML = '';
+    const theme = PORTAL_THEMES[this.currentPortal];
+
+    theme.tabs.forEach(section => {
+      section.items.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'nav-item';
+        itemEl.dataset.tab = item.id;
+        itemEl.innerHTML = `${item.icon} ${item.label.split(' ')[0]}`;
+        itemEl.onclick = () => {
+          switchTab(item.id, itemEl);
+        };
+
+        if (State.currentTab === item.id) {
+          itemEl.classList.add('active');
+        }
+        mobileNav.appendChild(itemEl);
+      });
     });
   },
 

@@ -1022,3 +1022,34 @@ h1,h2,h3,h4 { font-family:var(--font-body); font-weight:700; line-height:1.2; le
   color: var(--red);
   border: 1px solid rgba(255, 51, 102, 0.2);
 }
+
+/* ---- PORTALS RESPONSIVE ALIGNMENT ---- */
+@media (max-width: 1100px) {
+  .sidebar {
+    overflow: visible !important;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .portal-selector-wrap {
+    margin-bottom: 0 !important;
+    width: 200px !important;
+  }
+}
+@media (max-width: 480px) {
+  .portal-selector-wrap {
+    width: 160px !important;
+  }
+  .portal-dropdown {
+    padding: 8px 12px !important;
+    font-size: 12.5px !important;
+    gap: 8px !important;
+  }
+  .portal-option {
+    padding: 10px 12px !important;
+    font-size: 12.5px !important;
+    gap: 8px !important;
+  }
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
