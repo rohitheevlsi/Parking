@@ -1,20 +1,43 @@
 import sqlite3
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 def init_db():
-    db_path = 'database.sqlite'
-    if os.path.exists(db_path):
-        os.remove(db_path)
-        print("Removed old database.sqlite to perform clean schema rebuild.")
+    db_url = os.environ.get('DATABASE_URL')
+    is_postgres = False
+    
+    if db_url:
+        import psycopg2
+        print("Connecting to PostgreSQL database for initialization...")
+        conn = psycopg2.connect(db_url)
+        is_postgres = True
+    else:
+        db_path = 'database.sqlite'
+        if os.path.exists(db_path):
+            try:
+                os.remove(db_path)
+                print("Removed old database.sqlite to perform clean schema rebuild.")
+            except Exception as e:
+                print(f"Notice: Could not remove old database file (might be locked): {e}")
+        conn = sqlite3.connect(db_path)
+        is_postgres = False
 
-    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Enable foreign keys
-    cursor.execute("PRAGMA foreign_keys = ON;")
+    if not is_postgres:
+        cursor.execute("PRAGMA foreign_keys = ON;")
+
+    def execute_ddl(sql):
+        if is_postgres:
+            # Convert SQLite AUTOINCREMENT to Postgres SERIAL
+            sql = sql.replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY')
+        cursor.execute(sql)
 
     # Users table
-    cursor.execute('''
+    execute_ddl('''
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         phone TEXT NOT NULL UNIQUE,
@@ -26,7 +49,7 @@ def init_db():
     ''')
 
     # OTP Sessions table
-    cursor.execute('''
+    execute_ddl('''
     CREATE TABLE IF NOT EXISTS otp_sessions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         phone TEXT NOT NULL,
@@ -36,7 +59,7 @@ def init_db():
     ''')
 
     # Bookings table
-    cursor.execute('''
+    execute_ddl('''
     CREATE TABLE IF NOT EXISTS bookings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         booking_id TEXT NOT NULL UNIQUE,
@@ -50,13 +73,13 @@ def init_db():
         start_time TEXT NOT NULL,
         end_time TEXT NOT NULL,
         total_paid REAL NOT NULL,
-        status TEXT DEFAULT 'confirmed', -- confirmed, cancelled, completed
+        status TEXT DEFAULT 'confirmed',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
 
     # Payments table
-    cursor.execute('''
+    execute_ddl('''
     CREATE TABLE IF NOT EXISTS payments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         booking_id TEXT NOT NULL,
@@ -64,13 +87,13 @@ def init_db():
         razorpay_payment_id TEXT,
         razorpay_signature TEXT,
         amount REAL NOT NULL,
-        status TEXT DEFAULT 'pending', -- pending, success, failed, refunded
+        status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
 
     # Host listings table
-    cursor.execute('''
+    execute_ddl('''
     CREATE TABLE IF NOT EXISTS host_listings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_phone TEXT,
@@ -83,7 +106,7 @@ def init_db():
         lng REAL,
         availability_hrs TEXT DEFAULT '24/7',
         description TEXT,
-        status TEXT DEFAULT 'active', -- pending, active, inactive
+        status TEXT DEFAULT 'active',
         bookings INTEGER DEFAULT 0,
         earned REAL DEFAULT 0,
         views INTEGER DEFAULT 0,
@@ -92,7 +115,7 @@ def init_db():
     ''')
 
     # Reviews table
-    cursor.execute('''
+    execute_ddl('''
     CREATE TABLE IF NOT EXISTS reviews (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         lot_id INTEGER NOT NULL,
@@ -104,7 +127,7 @@ def init_db():
     ''')
 
     # IoT sensor readings table
-    cursor.execute('''
+    execute_ddl('''
     CREATE TABLE IF NOT EXISTS sensor_readings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         node_id TEXT NOT NULL,

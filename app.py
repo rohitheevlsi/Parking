@@ -35,10 +35,104 @@ def parse_iso_datetime(iso_str):
         dt = dt.astimezone().replace(tzinfo=None)
     return dt
 
+# ==========================================
+# 🔌 DATABASE CONNECTION ADAPTER WRAPPER
+# ==========================================
+class DatabaseConnection:
+    def __init__(self, is_postgres, conn):
+        self.is_postgres = is_postgres
+        self.conn = conn
+
+    def cursor(self):
+        return DatabaseCursor(self.is_postgres, self.conn.cursor())
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        self.conn.close()
+
+class DatabaseCursor:
+    def __init__(self, is_postgres, cursor):
+        self.is_postgres = is_postgres
+        self.cursor = cursor
+        self._lastrowid = None
+
+    def execute(self, sql, params=None):
+        if self.is_postgres:
+            # PostgreSQL uses %s instead of ?
+            sql = sql.replace('?', '%s')
+            
+            # If it's an INSERT, append "RETURNING id" to fetch lastrowid
+            if sql.strip().upper().startswith('INSERT INTO'):
+                if "RETURNING" not in sql.upper():
+                    sql = sql.rstrip(';') + " RETURNING id"
+                
+                if params is not None:
+                    self.cursor.execute(sql, params)
+                else:
+                    self.cursor.execute(sql)
+                
+                try:
+                    res = self.cursor.fetchone()
+                    if res:
+                        if isinstance(res, dict):
+                            self._lastrowid = res.get('id')
+                        else:
+                            self._lastrowid = res[0]
+                except Exception:
+                    pass
+                return self
+            
+        if params is not None:
+            self.cursor.execute(sql, params)
+        else:
+            self.cursor.execute(sql)
+        return self
+
+    def fetchone(self):
+        row = self.cursor.fetchone()
+        if row is None:
+            return None
+        return dict(row)
+
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        return [dict(r) for r in rows]
+
+    def close(self):
+        self.cursor.close()
+
+    @property
+    def lastrowid(self):
+        if self.is_postgres:
+            return self._lastrowid
+        else:
+            return self.cursor.lastrowid
+
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+        return DatabaseConnection(True, conn)
+    else:
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        return DatabaseConnection(False, conn)
 
 # Helper to check authentication
 def get_user_from_request():
