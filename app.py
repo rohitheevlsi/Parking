@@ -23,6 +23,18 @@ try:
 except ImportError:
     RAZORPAY_AVAILABLE = False
 
+def parse_iso_datetime(iso_str):
+    if not iso_str:
+        return None
+    # Replace trailing 'Z' with UTC offset '+00:00' for Python < 3.11 compatibility
+    if iso_str.endswith('Z'):
+        iso_str = iso_str[:-1] + '+00:00'
+    dt = datetime.fromisoformat(iso_str)
+    # Convert to timezone-naive UTC/local to avoid offset-naive/aware comparison errors
+    if dt.tzinfo is not None:
+        dt = dt.astimezone().replace(tzinfo=None)
+    return dt
+
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
@@ -188,12 +200,12 @@ def has_booking_conflict(lot_id, spot_code, start_iso, end_iso, exclude_booking_
     bookings = conn.execute(query, params).fetchall()
     conn.close()
 
-    s1 = datetime.fromisoformat(start_iso)
-    e1 = datetime.fromisoformat(end_iso)
+    s1 = parse_iso_datetime(start_iso)
+    e1 = parse_iso_datetime(end_iso)
 
     for b in bookings:
-        s2 = datetime.fromisoformat(b['start_time'])
-        e2 = datetime.fromisoformat(b['end_time'])
+        s2 = parse_iso_datetime(b['start_time'])
+        e2 = parse_iso_datetime(b['end_time'])
         
         # Check overlap: max(s1, s2) < min(e1, e2)
         if max(s1, s2) < min(e1, e2):
@@ -406,7 +418,7 @@ def cancel_booking(booking_id):
         return jsonify({'error': 'Booking not found'}), 404
 
     # Cancellation business rules: e.g., can cancel only up to 30 mins before start
-    start_dt = datetime.fromisoformat(booking['start_time'])
+    start_dt = parse_iso_datetime(booking['start_time'])
     if datetime.now() > (start_dt - timedelta(minutes=30)):
         conn.close()
         return jsonify({'error': 'Cancellations allowed only up to 30 minutes before booking start time.'}), 400
@@ -443,7 +455,7 @@ def extend_booking(booking_id):
         return jsonify({'error': 'Booking not found'}), 404
 
     # Calculate new end time
-    new_end_dt = datetime.fromisoformat(booking['end_time']) + timedelta(hours=int(data['duration_hrs']))
+    new_end_dt = parse_iso_datetime(booking['end_time']) + timedelta(hours=int(data['duration_hrs']))
     new_end_iso = new_end_dt.isoformat()
 
     # Check conflict with extended hours
